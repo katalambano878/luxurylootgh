@@ -232,8 +232,15 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
   };
 
   const handleBuyNow = () => {
+    if (!product) return;
+    if (needsVariantSelection || needsColorSelection || activeStock === 0) return;
     handleAddToCart();
-    window.location.href = '/checkout';
+    // Give React a tick to flush the state update + persist to localStorage
+    // before navigating; otherwise the checkout page can load with an
+    // empty cart and the customer gets stuck on "Your cart is empty".
+    setTimeout(() => {
+      window.location.href = '/checkout';
+    }, 50);
   };
 
   if (loading) {

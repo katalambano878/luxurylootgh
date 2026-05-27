@@ -83,19 +83,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 (item) => item.id === newItem.id && item.variant === newItem.variant
             );
 
+            let nextCart: CartItem[];
             if (existingItemIndex > -1) {
-                const newCart = [...prevCart];
-                const existingItem = newCart[existingItemIndex];
+                nextCart = [...prevCart];
+                const existingItem = nextCart[existingItemIndex];
                 // Ensure we don't exceed max stock
                 const newQuantity = Math.min(
                     existingItem.quantity + newItem.quantity,
                     existingItem.maxStock
                 );
-                newCart[existingItemIndex] = { ...existingItem, quantity: newQuantity };
-                return newCart;
+                nextCart[existingItemIndex] = { ...existingItem, quantity: newQuantity };
             } else {
-                return [...prevCart, newItem];
+                nextCart = [...prevCart, newItem];
             }
+
+            // Write to localStorage synchronously so that immediate page
+            // navigations (e.g. Buy Now -> /checkout) don't lose the cart
+            // before the useEffect-based persist has had a chance to run.
+            try {
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('cart', JSON.stringify(nextCart));
+                }
+            } catch (e) {
+                console.warn('Failed to persist cart immediately:', e);
+            }
+
+            return nextCart;
         });
 
         setIsCartOpen(true); // Open cart when item is added

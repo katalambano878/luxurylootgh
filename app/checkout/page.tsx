@@ -194,7 +194,14 @@ export default function CheckoutPage() {
         },
       }]).select().single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('[Checkout] Order insert error:', orderError);
+        throw new Error(`Could not create order: ${orderError.message}`);
+      }
+
+      if (!order) {
+        throw new Error('Order was created but could not be loaded. Please contact support and reference order number ' + orderNumber);
+      }
 
       const { error: itemsError } = await supabase.from('order_items')
         .insert(orderItemsPayload.map(row => ({ ...row, order_id: order.id })));
@@ -216,6 +223,11 @@ export default function CheckoutPage() {
           });
           const paymentResult = await paymentRes.json();
           if (!paymentResult.success) throw new Error(paymentResult.message || 'Payment initialization failed');
+          // Remember the customer's email so the order-success page can
+          // verify the order via the secure RPC even for guest checkouts.
+          try {
+            localStorage.setItem(`order_email:${orderNumber}`, shippingData.email);
+          } catch { /* ignore quota errors */ }
           clearCart();
           window.location.href = paymentResult.url;
           return;
