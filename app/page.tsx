@@ -14,7 +14,7 @@ import { getProductCardPricing } from '@/lib/pricing';
 
 const HERO_SLIDES = [
   {
-    image: '/hero_tops.png',
+    image: '/hero_tops_black.png',
     tag: 'New Arrivals',
     heading: (
       <>
@@ -320,7 +320,7 @@ export default function Home() {
       </div>
 
       {/* ─── TRUST FEATURES STRIP ─────────────────────────────────────────── */}
-      <section className="bg-white border-b border-stone-100">
+      <section className="hidden md:block bg-white border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-stone-100">
             {TRUST_FEATURES.map((f) => (
@@ -552,7 +552,7 @@ export default function Home() {
                 highlight: 'Best Value',
               },
               {
-                icon: 'ri-sparkle-line',
+                icon: 'ri-hand-heart-line',
                 title: 'Curated by Hand',
                 desc: 'Every single item in our store is personally selected and inspected. No junk — only pieces worth wearing.',
                 highlight: 'Hand-Picked',

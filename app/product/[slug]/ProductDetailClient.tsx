@@ -126,11 +126,22 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
           setQuantity(transformedProduct.moq);
         }
 
-        // If variants exist, do NOT pre-select — force user to choose
-        // Reset variant and color selection
-        setSelectedVariant(null);
-        setSelectedSize('');
+        // Reset selections by default
         setSelectedColor('');
+
+        // Auto-select when there's only one variant and no colors to choose from.
+        // If there are multiple variants OR colors, force the customer to pick.
+        if (
+          transformedProduct.variants.length === 1 &&
+          transformedProduct.colors.length === 0
+        ) {
+          const only = transformedProduct.variants[0];
+          setSelectedVariant(only);
+          setSelectedSize(only.name || '');
+        } else {
+          setSelectedVariant(null);
+          setSelectedSize('');
+        }
 
         // Fetch related products (cached for 5 minutes)
         if (productData.category_id) {
@@ -435,11 +446,12 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                       ? [] // Don't show name variants until a color is picked
                       : product.variants;
 
-                  // Check if we need to show the name selector (skip if all visible variants have the same name or only 1)
-                  const uniqueNames = [...new Set(visibleVariants.map((v: any) => v.name).filter(Boolean))];
-                  const showNameSelector = visibleVariants.length > 1 || (!hasColors && visibleVariants.length > 0);
+                  // Render the picker whenever there is at least one variant to show.
+                  if (visibleVariants.length === 0) {
+                    return null;
+                  }
 
-                  if (!showNameSelector && !hasColors) {
+                  if (!hasColors) {
                     // Single variant with no colors — show standard picker
                     return (
                       <div className="mb-8">
@@ -482,7 +494,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                     );
                   }
 
-                  if (visibleVariants.length > 1) {
+                  if (visibleVariants.length >= 1) {
                     return (
                       <div className="mb-8">
                         <label className="block font-semibold text-gray-900 mb-3">

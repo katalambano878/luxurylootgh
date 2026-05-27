@@ -42,7 +42,7 @@ export default function AboutPage() {
       {/* ── HERO ─────────────────────────────────────────── */}
       <section className="relative bg-stone-950 overflow-hidden" style={{ minHeight: '72vh' }}>
         <Image
-          src="/hero_tops.png"
+          src="/hero_tops_black.png"
           alt="Our Story"
           fill
           className="object-cover object-top"

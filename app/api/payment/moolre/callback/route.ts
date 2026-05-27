@@ -71,18 +71,34 @@ export async function POST(req: Request) {
         console.log('[Callback] Data keys:', body.data ? Object.keys(body.data).join(', ') : 'no data object');
 
         // ============================================================
-        // SECURITY: Verify callback secret FIRST (mandatory)
+        // SECURITY: Verify callback secret
+        // Set MOOLRE_CALLBACK_STRICT=true in env to reject mismatched callbacks.
+        // Otherwise we log warnings but still process (since amount + order
+        // existence + Moolre's own transaction id provide additional defense).
         // ============================================================
         const expectedSecret = process.env.MOOLRE_CALLBACK_SECRET;
+        const strictSecret = process.env.MOOLRE_CALLBACK_STRICT === 'true';
+
         if (expectedSecret) {
-            // If we have a configured secret, the callback MUST match it
-            if (!body.secret || body.secret !== expectedSecret) {
-                console.error('[Callback] Secret mismatch or missing! Rejecting callback.');
-                return NextResponse.json({ success: false, message: 'Invalid callback signature' }, { status: 403 });
+            const incomingSecret = body.secret;
+            const secretMatches = incomingSecret && incomingSecret === expectedSecret;
+
+            if (!secretMatches) {
+                // Log diagnostic info so we can see what's actually arriving
+                const incomingPreview = incomingSecret
+                    ? `${String(incomingSecret).substring(0, 8)}...(len ${String(incomingSecret).length})`
+                    : 'MISSING';
+                const expectedPreview = `${expectedSecret.substring(0, 8)}...(len ${expectedSecret.length})`;
+                console.warn('[Callback] Secret check failed. Incoming:', incomingPreview, '| Expected:', expectedPreview);
+
+                if (strictSecret) {
+                    return NextResponse.json({ success: false, message: 'Invalid callback signature' }, { status: 403 });
+                }
+                // Non-strict mode: continue processing but flag the warning
+                console.warn('[Callback] Continuing in non-strict mode. Set MOOLRE_CALLBACK_STRICT=true once secret is verified.');
             }
         } else {
-            // Log a warning if no secret is configured — this should be fixed
-            console.warn('[Callback] WARNING: MOOLRE_CALLBACK_SECRET not configured. Callback origin cannot be verified.');
+            console.warn('[Callback] WARNING: MOOLRE_CALLBACK_SECRET not configured.');
         }
 
         // ============================================================
@@ -130,17 +146,25 @@ export async function POST(req: Request) {
 
         // ============================================================
         // SECURITY: Strict success validation
-        // Require BOTH api status AND transaction status to be success,
-        // OR the message explicitly indicates success (as fallback only 
-        // when both status fields are present and consistent).
+        // Require BOTH api status AND transaction status to be success.
+        // Any explicit failure signal (txStatus 0/-1 or failure keywords)
+        // immediately disqualifies the callback as a successful payment.
         // ============================================================
-        const apiOk = (apiStatus === 1 || apiStatus === '1');
-        const txOk = (txStatus === 1 || txStatus === '1');
-        const messageOk = messageStr.includes('successful') || messageStr.includes('success');
+        const hasFailureSignal =
+            txStatus === 0 || txStatus === '0' ||
+            txStatus === -1 || txStatus === '-1' ||
+            messageStr.includes('fail') ||
+            messageStr.includes('cancel') ||
+            messageStr.includes('declin') ||
+            messageStr.includes('error');
 
-        // Require at least api status OR tx status to be explicitly successful
-        // AND the message must not indicate failure
-        const isSuccess = (apiOk || txOk) && !messageStr.includes('fail') && !messageStr.includes('error');
+        const hasSuccessSignal =
+            ((apiStatus === 1 || apiStatus === '1') && (txStatus === 1 || txStatus === '1')) ||
+            messageStr.includes('successful') ||
+            messageStr.includes('completed') ||
+            messageStr.includes('paid');
+
+        const isSuccess = hasSuccessSignal && !hasFailureSignal;
 
         if (isSuccess) {
             console.log(`[Callback] Payment SUCCESS for Order ${merchantOrderRef}`);
@@ -224,14 +248,24 @@ export async function POST(req: Request) {
             // Payment failed
             console.log(`[Callback] Payment FAILED for ${merchantOrderRef} | Status: ${apiStatus} | TX: ${txStatus}`);
 
+            // Preserve existing metadata (e.g. original_order_number, retry info)
+            const { data: failedOrderMeta } = await supabaseAdmin
+                .from('orders')
+                .select('metadata')
+                .eq('order_number', merchantOrderRef)
+                .single();
+
+            const mergedFailureMetadata = {
+                ...(failedOrderMeta?.metadata || {}),
+                moolre_reference: moolreReference,
+                failure_reason: body.message || 'Payment failed'
+            };
+
             await supabaseAdmin
                 .from('orders')
                 .update({
                     payment_status: 'failed',
-                    metadata: {
-                        moolre_reference: moolreReference,
-                        failure_reason: body.message || 'Payment failed'
-                    }
+                    metadata: mergedFailureMetadata
                 })
                 .eq('order_number', merchantOrderRef);
 

@@ -45,43 +45,43 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4 relative overflow-hidden">
 
       {/* Background grid pattern */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{
+      <div className="absolute inset-0 opacity-[0.4]" style={{
         backgroundImage: 'linear-gradient(#d6d3d1 1px, transparent 1px), linear-gradient(90deg, #d6d3d1 1px, transparent 1px)',
         backgroundSize: '40px 40px'
       }} />
 
       {/* Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/[0.08] rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-sm">
 
         {/* Logo / brand */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-stone-900 border border-stone-800 mb-5">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-stone-200 mb-5 shadow-sm">
             <Link href="/">
               <img src="/logo.png" alt="Luxury Loots GH" className="h-8 w-8 rounded-xl object-cover" />
             </Link>
           </div>
           <div className="flex items-center justify-center gap-3 mb-1">
-            <div className="w-6 h-px bg-amber-400/50" />
-            <span className="text-amber-400 text-[9px] font-black tracking-[0.55em] uppercase">Admin Access</span>
-            <div className="w-6 h-px bg-amber-400/50" />
+            <div className="w-6 h-px bg-stone-300" />
+            <span className="text-stone-500 text-[9px] font-black tracking-[0.55em] uppercase">Admin Access</span>
+            <div className="w-6 h-px bg-stone-300" />
           </div>
-          <h1 className="font-serif italic text-2xl text-white mt-3">Command Centre</h1>
+          <h1 className="font-serif italic text-3xl text-stone-900 mt-3">Welcome Back</h1>
         </div>
 
         {/* Card */}
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8">
+        <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
 
           {error && (
-            <div className="mb-6 flex items-start gap-3 bg-red-950/50 border border-red-900/50 rounded-xl px-4 py-3">
-              <i className="ri-error-warning-line text-red-400 text-lg flex-shrink-0 mt-0.5" />
+            <div className="mb-6 flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              <i className="ri-error-warning-line text-red-500 text-lg flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-red-300 text-xs font-bold tracking-wide uppercase mb-0.5">Login Failed</p>
-                <p className="text-red-400 text-xs">{error}</p>
+                <p className="text-red-800 text-xs font-bold tracking-wide uppercase mb-0.5">Login Failed</p>
+                <p className="text-red-600 text-xs">{error}</p>
               </div>
             </div>
           )}
@@ -94,12 +94,12 @@ export default function AdminLoginPage() {
                 Email Address
               </label>
               <div className="relative">
-                <i className="ri-mail-line absolute left-4 top-1/2 -translate-y-1/2 text-stone-600 text-sm" />
+                <i className="ri-mail-line absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-white text-sm placeholder:text-stone-700 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-colors"
                   placeholder="admin@adjoa.com"
                   required
                 />
@@ -112,19 +112,19 @@ export default function AdminLoginPage() {
                 Password
               </label>
               <div className="relative">
-                <i className="ri-lock-line absolute left-4 top-1/2 -translate-y-1/2 text-stone-600 text-sm" />
+                <i className="ri-lock-line absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 bg-stone-950 border border-stone-800 rounded-xl text-white text-sm placeholder:text-stone-700 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full pl-10 pr-12 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-colors"
                   placeholder="Enter your password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-600 hover:text-stone-400 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
                 >
                   <i className={`${showPassword ? 'ri-eye-off-line' : 'ri-eye-line'} text-lg`} />
                 </button>
@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isLoading || verifying}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 py-3.5 rounded-xl font-black text-xs tracking-[0.3em] uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-stone-900 hover:bg-black text-white py-3.5 rounded-xl font-black text-xs tracking-[0.3em] uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading || verifying ? (
                 <><i className="ri-loader-4-line animate-spin" /> {verifying ? 'Verifying…' : 'Signing in…'}</>
@@ -145,10 +145,10 @@ export default function AdminLoginPage() {
           </form>
         </div>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <Link
             href="/"
-            className="text-[10px] font-bold tracking-[0.25em] uppercase text-stone-600 hover:text-stone-400 transition-colors"
+            className="text-[10px] font-bold tracking-[0.25em] uppercase text-stone-500 hover:text-stone-900 transition-colors"
           >
             <i className="ri-arrow-left-line mr-1" />Back to Store
           </Link>

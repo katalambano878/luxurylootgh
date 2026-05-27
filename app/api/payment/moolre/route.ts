@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
         const query = supabaseAdmin
             .from('orders')
-            .select('id, order_number, total, email, payment_status');
+            .select('id, order_number, total, email, payment_status, metadata');
 
         if (isUUID) {
             query.or(`id.eq.${orderId},order_number.eq.${orderId}`);
@@ -71,7 +71,30 @@ export async function POST(req: Request) {
         const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin).replace(/\/+$/, '');
 
         // Generate a unique external reference for Moolre
+        // Append a retry suffix so re-payments don't clash with previous attempts
         const uniqueRef = `${orderRef}-R${Date.now()}`;
+
+        // Persist the latest payment attempt reference so verify/callback can
+        // reliably reconcile retries with the actual reference Moolre knows.
+        const mergedMetadata = {
+            ...(order.metadata || {}),
+            payment_method: 'moolre',
+            moolre_externalref: uniqueRef,
+            payment_attempted_at: new Date().toISOString()
+        };
+
+        const { error: orderUpdateError } = await supabaseAdmin
+            .from('orders')
+            .update({
+                payment_status: 'pending',
+                metadata: mergedMetadata
+            })
+            .eq('order_number', orderRef);
+
+        if (orderUpdateError) {
+            console.error('[Payment] Failed to save attempt metadata:', orderUpdateError.message);
+            return NextResponse.json({ success: false, message: 'Failed to prepare payment' }, { status: 500 });
+        }
 
         // Moolre Payload
         const payload = {

@@ -81,6 +81,11 @@ export async function POST(req: Request) {
             }, { status: 503 });
         }
 
+        // Use the actual reference Moolre knows about (the unique -R<timestamp> ref),
+        // falling back to the plain order number for backward compatibility.
+        const externalRefToCheck = order.metadata?.moolre_externalref || orderNumber;
+        console.log('[Verify] Using externalref:', externalRefToCheck);
+
         try {
             const checkResponse = await fetch('https://api.moolre.com/embed/status', {
                 method: 'POST',
@@ -89,10 +94,24 @@ export async function POST(req: Request) {
                     'X-API-USER': process.env.MOOLRE_API_USER,
                     'X-API-PUBKEY': process.env.MOOLRE_API_PUBKEY
                 },
-                body: JSON.stringify({ externalref: orderNumber })
+                body: JSON.stringify({ externalref: externalRefToCheck })
             });
 
-            const checkResult = await checkResponse.json();
+            // Read as text first so we can log HTML error pages instead of crashing on JSON.parse
+            const rawText = await checkResponse.text();
+            let checkResult: any = {};
+            try {
+                checkResult = JSON.parse(rawText);
+            } catch {
+                console.error('[Verify] Moolre returned non-JSON response. Status:', checkResponse.status, '| Body preview:', rawText.substring(0, 300));
+                return NextResponse.json({
+                    success: false,
+                    status: order.status,
+                    payment_status: order.payment_status,
+                    message: 'Payment provider returned an unexpected response'
+                });
+            }
+
             console.log('[Verify] Moolre API response:', JSON.stringify(checkResult));
 
             // Strict verification: require explicit success status

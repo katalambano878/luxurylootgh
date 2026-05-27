@@ -185,19 +185,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-stone-800/60 flex-shrink-0">
-          <Link href="/admin" className="flex items-center gap-3 w-full">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-stone-950 font-black text-xs">L</span>
+          <Link href="/admin" className="flex items-center gap-3 w-full group">
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+              <img src="/logo.png" alt="Luxury Loots GH" className="w-full h-full object-cover" />
             </div>
-            <div className="min-w-0">
-              <p className="text-white text-sm font-bold truncate leading-tight">Luxury Loots GH</p>
-              <p className="text-[8px] font-black tracking-[0.4em] uppercase text-amber-500/70">Admin Panel</p>
+            <div className="min-w-0 flex flex-col justify-center">
+              <p className="text-[10px] font-black tracking-[0.3em] uppercase text-amber-500">Admin</p>
+              <p className="text-[10px] font-black tracking-[0.3em] uppercase text-stone-500">Panel</p>
             </div>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 scrollbar-hide">
           {filteredSections.map((section) => (
             <div key={section.label}>
               <p className="text-[8px] font-black tracking-[0.5em] uppercase text-stone-600 px-3 mb-2">

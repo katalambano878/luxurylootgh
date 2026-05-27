@@ -286,21 +286,36 @@ export default function AdminOrdersPage() {
   const handleResendPaymentLink = async (order: Order) => {
     setSendingPaymentLink(order.id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
+      if (!authToken) {
+        alert('Your admin session has expired. Please log in again.');
+        return;
+      }
+
       const response = await fetch('/api/notifications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           type: 'payment_link',
           payload: order
         })
       });
-      
-      if (!response.ok) throw new Error('Failed to send');
-      
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result?.error || `Request failed (${response.status})`);
+      }
+
       alert(`Payment link sent to ${order.phone || order.email}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending payment link:', error);
-      alert('Failed to send payment link');
+      alert(`Failed to send payment link: ${error?.message || 'Unknown error'}`);
     } finally {
       setSendingPaymentLink(null);
     }

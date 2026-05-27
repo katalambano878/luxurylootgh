@@ -1,383 +1,319 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+const toc = [
+  { id: 'collect',       num: '01', title: 'Information We Collect' },
+  { id: 'use',           num: '02', title: 'How We Use Your Info' },
+  { id: 'sharing',       num: '03', title: 'Sharing & Disclosure' },
+  { id: 'security',      num: '04', title: 'Data Security' },
+  { id: 'rights',        num: '05', title: 'Your Rights' },
+  { id: 'cookies',       num: '06', title: 'Cookies & Tracking' },
+  { id: 'children',      num: '07', title: "Children's Privacy" },
+  { id: 'international', num: '08', title: 'International Transfers' },
+  { id: 'retention',     num: '09', title: 'Data Retention' },
+  { id: 'changes',       num: '10', title: 'Policy Changes' },
+  { id: 'contact',       num: '11', title: 'Contact Us' },
+];
+
 export default function PrivacyPage() {
+  const [active, setActive] = useState('collect');
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => { if (e.isIntersecting) setActive(e.target.id); });
+      },
+      { rootMargin: '-20% 0px -70% 0px' }
+    );
+    toc.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
-      <div className="bg-gradient-to-br from-stone-50 via-white to-amber-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
-            <p className="text-xl text-gray-600 leading-relaxed">
-              Your privacy matters to us. Learn how we collect, use, and protect your personal information.
-            </p>
-            <p className="text-sm text-gray-500 mt-4">Last updated: February 2026</p>
-          </div>
+      <div className="h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+
+      {/* Hero */}
+      <div className="relative bg-stone-950 overflow-hidden">
+        <span className="pointer-events-none select-none absolute right-8 top-1/2 -translate-y-1/2 text-[220px] font-black text-white/[0.03] leading-none">P</span>
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-12 py-20 lg:py-28">
+          <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-400 mb-6">Legal</p>
+          <h1 className="font-serif text-4xl lg:text-6xl text-white leading-tight mb-6">
+            <em>Your privacy,</em>
+            <br />
+            <span className="text-stone-400">our commitment.</span>
+          </h1>
+          <p className="text-stone-400 text-sm leading-relaxed max-w-md mb-4">
+            Learn how we collect, use, and protect your personal information.
+          </p>
+          <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-600">Last updated — February 2026</p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="prose prose-lg max-w-none">
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">1. Information We Collect</h2>
-            
-            <h3 className="text-xl font-bold text-gray-900 mb-4 mt-8">1.1 Information You Provide</h3>
-            <p className="text-gray-600 leading-relaxed mb-4">
-              When you create an account, place an order, or contact us, we collect:
-            </p>
-            <ul className="space-y-2 text-gray-600 mb-6">
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Personal Details:</strong> Name, email address, phone number, date of birth</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Delivery Information:</strong> Shipping and billing addresses</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Payment Details:</strong> Payment method information (securely processed by third-party providers)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Communications:</strong> Messages, reviews, and feedback you submit</span>
-              </li>
-            </ul>
+      {/* Body */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-24">
+        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-20">
 
-            <h3 className="text-xl font-bold text-gray-900 mb-4 mt-8">1.2 Information Collected Automatically</h3>
-            <p className="text-gray-600 leading-relaxed mb-4">
-              When you visit our website, we automatically collect:
-            </p>
-            <ul className="space-y-2 text-gray-600 mb-6">
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Device Information:</strong> IP address, browser type, operating system, device identifiers</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Usage Data:</strong> Pages viewed, products browsed, search queries, time spent on site</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-checkbox-circle-line text-stone-700 mt-1"></i>
-                <span><strong>Cookies:</strong> Small data files stored on your device to improve your experience</span>
-              </li>
-            </ul>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">2. How We Use Your Information</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              We use your personal information for the following purposes:
-            </p>
-            
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <i className="ri-shopping-bag-line text-stone-700"></i>
-                  Order Processing & Fulfilment
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Process your orders, arrange delivery, send order confirmations and updates, handle returns and refunds, and provide customer support.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <i className="ri-line-chart-line text-stone-700"></i>
-                  Service Improvement
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Analyse website usage to improve our products, services, and user experience. Conduct research and development for new features and offerings.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <i className="ri-mail-line text-stone-700"></i>
-                  Marketing & Communication
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Send promotional emails, special offers, and product recommendations (only if you've opted in). Share relevant updates about your orders and our services.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <i className="ri-shield-check-line text-stone-700"></i>
-                  Security & Fraud Prevention
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Protect against fraudulent transactions, unauthorised access, and other security threats. Verify your identity for high-value purchases.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <i className="ri-scales-line text-stone-700"></i>
-                  Legal Compliance
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Comply with legal obligations, respond to lawful requests from authorities, enforce our terms and conditions, and resolve disputes.
-                </p>
-              </div>
+          {/* Sticky TOC */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 space-y-1">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-stone-400 mb-6">Contents</p>
+              {toc.map(({ id, num, title }) => (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  className={`flex items-center gap-3 py-2 group transition-colors ${active === id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'}`}
+                >
+                  <span className={`text-[9px] font-black tracking-widest transition-colors flex-shrink-0 ${active === id ? 'text-amber-500' : 'text-stone-300 group-hover:text-amber-400'}`}>{num}</span>
+                  <span className="text-[11px] font-medium leading-tight">{title}</span>
+                </a>
+              ))}
             </div>
-          </section>
+          </aside>
 
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">3. Information Sharing & Disclosure</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              We do not sell your personal information. We may share your data with:
-            </p>
+          {/* Content */}
+          <div className="space-y-20 min-w-0">
 
-            <div className="space-y-4">
-              <div className="border-l-4 border-stone-700 pl-6">
-                <h3 className="font-bold text-gray-900 mb-2">Service Providers</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Trusted third parties who help us operate our business (payment processors, delivery partners, email service providers, analytics tools). They are contractually bound to protect your data.
-                </p>
-              </div>
+            <section id="collect">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">01</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Information We Collect</h2>
 
-              <div className="border-l-4 border-stone-700 pl-6">
-                <h3 className="font-bold text-gray-900 mb-2">Business Transfers</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  If we merge with or are acquired by another company, your information may be transferred as part of the transaction. We will notify you of any such change.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-stone-700 pl-6">
-                <h3 className="font-bold text-gray-900 mb-2">Legal Requirements</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  When required by law or to protect our rights, property, or safety, or that of our customers or others.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-stone-700 pl-6">
-                <h3 className="font-bold text-gray-900 mb-2">With Your Consent</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Any other disclosures will be made only with your explicit consent.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">4. Data Security</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              We implement robust security measures to protect your personal information:
-            </p>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-stone-50 border border-stone-200 p-6 rounded-xl">
-                <div className="w-10 h-10 bg-stone-700 rounded-full flex items-center justify-center mb-4">
-                  <i className="ri-lock-line text-white text-lg"></i>
+              <div className="mb-8">
+                <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-400 mb-4">Information You Provide</p>
+                <p className="text-stone-600 text-sm leading-relaxed mb-5">When you create an account, place an order, or contact us, we collect:</p>
+                <div className="space-y-3">
+                  {[
+                    ['Personal Details', 'Name, email address, phone number, date of birth'],
+                    ['Delivery Information', 'Shipping and billing addresses'],
+                    ['Payment Details', 'Payment method information (securely processed by third-party providers)'],
+                    ['Communications', 'Messages, reviews, and feedback you submit'],
+                  ].map(([label, text]) => (
+                    <div key={label} className="flex items-start gap-4">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-[7px] flex-shrink-0" />
+                      <p className="text-stone-600 text-sm leading-relaxed"><span className="font-semibold text-stone-900">{label}:</span> {text}</p>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="font-bold text-gray-900 mb-2">Encryption</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  All data transmitted between your browser and our servers is encrypted using SSL/TLS technology.
-                </p>
               </div>
 
-              <div className="bg-stone-50 border border-stone-200 p-6 rounded-xl">
-                <div className="w-10 h-10 bg-stone-700 rounded-full flex items-center justify-center mb-4">
-                  <i className="ri-shield-check-line text-white text-lg"></i>
+              <div>
+                <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-400 mb-4">Collected Automatically</p>
+                <p className="text-stone-600 text-sm leading-relaxed mb-5">When you visit our website, we automatically collect:</p>
+                <div className="space-y-3">
+                  {[
+                    ['Device Information', 'IP address, browser type, operating system, device identifiers'],
+                    ['Usage Data', 'Pages viewed, products browsed, search queries, time spent on site'],
+                    ['Cookies', 'Small data files stored on your device to improve your experience'],
+                  ].map(([label, text]) => (
+                    <div key={label} className="flex items-start gap-4">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-[7px] flex-shrink-0" />
+                      <p className="text-stone-600 text-sm leading-relaxed"><span className="font-semibold text-stone-900">{label}:</span> {text}</p>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="font-bold text-gray-900 mb-2">Secure Storage</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Your data is stored on secure servers with restricted access and regular security audits.
-                </p>
+              </div>
+            </section>
+
+            <section id="use">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">02</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">How We Use Your Information</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">We use your personal information for the following purposes:</p>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  { icon: 'ri-shopping-bag-line', title: 'Order Processing', text: 'Process your orders, arrange delivery, send confirmations, handle returns and refunds, and provide customer support.' },
+                  { icon: 'ri-line-chart-line', title: 'Service Improvement', text: 'Analyse website usage to improve our products, services, and user experience.' },
+                  { icon: 'ri-mail-line', title: 'Marketing', text: "Send promotional emails and product recommendations — only if you've opted in." },
+                  { icon: 'ri-shield-check-line', title: 'Fraud Prevention', text: 'Protect against fraudulent transactions, unauthorised access, and other security threats.' },
+                  { icon: 'ri-scales-line', title: 'Legal Compliance', text: 'Comply with legal obligations, respond to lawful requests, enforce our terms, and resolve disputes.' },
+                ].map(({ icon, title, text }) => (
+                  <div key={title} className="bg-stone-50 p-6">
+                    <div className="w-8 h-8 bg-stone-950 flex items-center justify-center mb-4">
+                      <i className={`${icon} text-amber-400 text-sm`} />
+                    </div>
+                    <p className="text-[9px] font-black tracking-[0.3em] uppercase text-stone-700 mb-2">{title}</p>
+                    <p className="text-stone-500 text-sm leading-relaxed">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="sharing">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">03</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Information Sharing & Disclosure</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">We do not sell your personal information. We may share your data with:</p>
+
+              <div className="space-y-6">
+                {[
+                  { title: 'Service Providers', text: 'Trusted third parties who help us operate our business — payment processors, delivery partners, email service providers, analytics tools. They are contractually bound to protect your data.' },
+                  { title: 'Business Transfers', text: 'If we merge with or are acquired by another company, your information may be transferred as part of the transaction. We will notify you of any such change.' },
+                  { title: 'Legal Requirements', text: 'When required by law or to protect our rights, property, or safety, or that of our customers or others.' },
+                  { title: 'With Your Consent', text: 'Any other disclosures will be made only with your explicit consent.' },
+                ].map(({ title, text }) => (
+                  <div key={title} className="flex gap-6">
+                    <div className="w-px bg-amber-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-900 mb-2">{title}</p>
+                      <p className="text-stone-500 text-sm leading-relaxed">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="security">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">04</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Data Security</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">We implement robust security measures to protect your personal information:</p>
+
+              <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                {[
+                  { icon: 'ri-lock-line', title: 'Encryption', text: 'All data transmitted between your browser and our servers is encrypted using SSL/TLS technology.' },
+                  { icon: 'ri-shield-check-line', title: 'Secure Storage', text: 'Your data is stored on secure servers with restricted access and regular security audits.' },
+                  { icon: 'ri-bank-card-line', title: 'Payment Security', text: 'We never store your full payment card details. All payments are processed by PCI-DSS compliant providers.' },
+                  { icon: 'ri-user-lock-line', title: 'Access Controls', text: 'Only authorised personnel have access to personal data, bound by strict confidentiality obligations.' },
+                ].map(({ icon, title, text }) => (
+                  <div key={title} className="bg-stone-50 p-6">
+                    <div className="w-8 h-8 bg-stone-950 flex items-center justify-center mb-4">
+                      <i className={`${icon} text-amber-400 text-sm`} />
+                    </div>
+                    <p className="text-[9px] font-black tracking-[0.3em] uppercase text-stone-700 mb-2">{title}</p>
+                    <p className="text-stone-500 text-sm leading-relaxed">{text}</p>
+                  </div>
+                ))}
               </div>
 
-              <div className="bg-stone-50 border border-stone-200 p-6 rounded-xl">
-                <div className="w-10 h-10 bg-stone-700 rounded-full flex items-center justify-center mb-4">
-                  <i className="ri-bank-card-line text-white text-lg"></i>
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Payment Security</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  We never store your full payment card details. All payments are processed by PCI-DSS compliant providers.
-                </p>
+              <div className="bg-stone-950 p-6 relative overflow-hidden">
+                <span className="pointer-events-none select-none absolute right-4 top-1/2 -translate-y-1/2 text-[80px] font-black text-white/[0.04] leading-none">!</span>
+                <p className="text-[9px] font-black tracking-[0.4em] uppercase text-amber-400 mb-2">Important Note</p>
+                <p className="text-stone-300 text-sm leading-relaxed">While we implement strong security measures, no method of transmission or storage is 100% secure. We cannot guarantee absolute security but continually work to protect your information.</p>
+              </div>
+            </section>
+
+            <section id="rights">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">05</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Your Rights & Choices</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">You have the following rights regarding your personal information:</p>
+
+              <div className="space-y-0">
+                {[
+                  { icon: 'ri-eye-line', title: 'Access', text: 'Request a copy of the personal information we hold about you.' },
+                  { icon: 'ri-pencil-line', title: 'Correction', text: 'Update or correct inaccurate or incomplete information.' },
+                  { icon: 'ri-delete-bin-line', title: 'Deletion', text: 'Request deletion of your personal information (subject to legal retention requirements).' },
+                  { icon: 'ri-mail-close-line', title: 'Marketing Opt-Out', text: 'Unsubscribe from marketing emails at any time using the link in our emails or your account settings.' },
+                  { icon: 'ri-download-line', title: 'Data Portability', text: 'Receive your data in a structured, commonly used format.' },
+                  { icon: 'ri-hand-coin-line', title: 'Object to Processing', text: 'Object to certain types of data processing, such as direct marketing.' },
+                ].map(({ icon, title, text }) => (
+                  <div key={title} className="flex items-start gap-5 py-5 border-b border-stone-100 last:border-0">
+                    <div className="w-8 h-8 bg-stone-100 flex items-center justify-center flex-shrink-0">
+                      <i className={`${icon} text-stone-700 text-sm`} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-900 mb-1">{title}</p>
+                      <p className="text-stone-500 text-sm leading-relaxed">{text}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="bg-stone-50 border border-stone-200 p-6 rounded-xl">
-                <div className="w-10 h-10 bg-stone-700 rounded-full flex items-center justify-center mb-4">
-                  <i className="ri-user-lock-line text-white text-lg"></i>
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Access Controls</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Only authorised personnel have access to personal data, and they are bound by strict confidentiality obligations.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl mt-6">
-              <p className="text-sm text-gray-600 leading-relaxed">
-                <strong className="text-gray-900">Important:</strong> While we implement strong security measures, no method of transmission or storage is 100% secure. We cannot guarantee absolute security but continually work to protect your information.
+              <p className="text-stone-500 text-sm leading-relaxed mt-6">
+                To exercise any of these rights, please reach out through your account settings or the contact page. We will respond within 30 days.
               </p>
-            </div>
-          </section>
+            </section>
 
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">5. Your Rights & Choices</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              You have the following rights regarding your personal information:
-            </p>
+            <section id="cookies">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">06</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Cookies & Tracking</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">We use cookies and similar technologies to enhance your browsing experience:</p>
 
-            <div className="space-y-4 mb-6">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-eye-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Access</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Request a copy of the personal information we hold about you.</p>
-                </div>
+              <div className="space-y-3 mb-6">
+                {[
+                  { title: 'Essential Cookies', text: 'Required for the website to function properly (e.g., shopping cart, login sessions). These cannot be disabled.' },
+                  { title: 'Analytics Cookies', text: 'Help us understand how visitors use our website so we can improve it. These collect anonymous usage data.' },
+                  { title: 'Marketing Cookies', text: 'Used to show you relevant advertisements based on your interests. You can opt out through your browser settings.' },
+                  { title: 'Preference Cookies', text: 'Remember your preferences and settings (e.g., language, region) to provide a personalised experience.' },
+                ].map(({ title, text }) => (
+                  <div key={title} className="bg-stone-50 p-5 flex gap-5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-black tracking-[0.4em] uppercase text-stone-800 mb-1.5">{title}</p>
+                      <p className="text-stone-500 text-sm leading-relaxed">{text}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-pencil-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Correction</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Update or correct inaccurate or incomplete information.</p>
-                </div>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                You can control cookie preferences through your browser settings. However, disabling certain cookies may affect website functionality.
+              </p>
+            </section>
+
+            <section id="children">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">07</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Children's Privacy</h2>
+              <p className="text-stone-600 text-sm leading-relaxed">
+                Our website is not intended for children under 16 years of age. We do not knowingly collect personal information from children. If you believe we have inadvertently collected information from a child, please contact us immediately and we will delete it.
+              </p>
+            </section>
+
+            <section id="international">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">08</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">International Data Transfers</h2>
+              <p className="text-stone-600 text-sm leading-relaxed">
+                Your information may be transferred to and processed in countries outside Ghana, including countries that may have different data protection laws. We ensure appropriate safeguards are in place to protect your information in accordance with this privacy policy.
+              </p>
+            </section>
+
+            <section id="retention">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">09</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Data Retention</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-6">We retain your personal information only for as long as necessary to fulfil the purposes outlined in this policy:</p>
+
+              <div className="space-y-0">
+                {[
+                  ['Account Information', 'Until you request deletion or close your account'],
+                  ['Order History', '7 years for tax and accounting purposes'],
+                  ['Marketing Data', 'Until you unsubscribe or request deletion'],
+                  ['Analytics Data', 'Typically 26 months'],
+                ].map(([label, text]) => (
+                  <div key={label} className="flex items-start gap-4 py-4 border-b border-stone-100 last:border-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-[7px] flex-shrink-0" />
+                    <p className="text-stone-600 text-sm leading-relaxed"><span className="font-semibold text-stone-900">{label}:</span> {text}</p>
+                  </div>
+                ))}
               </div>
+            </section>
 
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-delete-bin-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Deletion</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Request deletion of your personal information (subject to legal retention requirements).</p>
-                </div>
+            <section id="changes">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">10</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Changes to This Policy</h2>
+              <p className="text-stone-600 text-sm leading-relaxed">
+                We may update this privacy policy from time to time to reflect changes in our practices or for legal, operational, or regulatory reasons. We will notify you of significant changes by email or through a prominent notice on our website. The &ldquo;Last updated&rdquo; date at the top indicates when the policy was last revised.
+              </p>
+            </section>
+
+            <section id="contact">
+              <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-500 mb-3">11</p>
+              <h2 className="font-serif text-2xl lg:text-3xl text-stone-900 italic mb-8">Contact Us</h2>
+              <p className="text-stone-600 text-sm leading-relaxed mb-10">
+                If you have any questions, concerns, or requests regarding this privacy policy or our data practices, please contact us via the contact page on this website.
+              </p>
+
+              <div className="bg-stone-950 p-8 lg:p-10 relative overflow-hidden">
+                <span className="pointer-events-none select-none absolute right-6 top-1/2 -translate-y-1/2 text-[140px] font-black text-white/[0.04] leading-none">P</span>
+                <p className="text-[9px] font-black tracking-[0.5em] uppercase text-amber-400 mb-4">Your data, protected.</p>
+                <p className="font-serif text-xl lg:text-2xl text-white italic mb-6">Questions about how<br />we handle your data?</p>
+                <a href="/contact" className="inline-block bg-amber-400 text-stone-950 px-8 py-3 text-[10px] font-black tracking-[0.3em] uppercase hover:bg-amber-300 transition-colors">
+                  Get in Touch
+                </a>
               </div>
+            </section>
 
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-mail-close-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Marketing Opt-Out</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Unsubscribe from marketing emails at any time using the link in our emails or your account settings.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-download-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Data Portability</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Receive your data in a structured, commonly used format.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <i className="ri-hand-coin-line text-stone-700"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-1">Object to Processing</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">Object to certain types of data processing, such as direct marketing.</p>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-gray-600 leading-relaxed">
-              To exercise any of these rights, please reach out to us through your account settings or the contact page. We will respond within 30 days.
-            </p>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">6. Cookies & Tracking</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              We use cookies and similar technologies to enhance your browsing experience:
-            </p>
-
-            <div className="space-y-4">
-              <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-2">Essential Cookies</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Required for the website to function properly (e.g., shopping cart, login sessions). These cannot be disabled.
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-2">Analytics Cookies</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Help us understand how visitors use our website so we can improve it. These collect anonymous usage data.
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-2">Marketing Cookies</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Used to show you relevant advertisements based on your interests. You can opt out of these through your browser settings.
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                <h3 className="font-bold text-gray-900 mb-2">Preference Cookies</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  Remember your preferences and settings (e.g., language, region) to provide a personalised experience.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-gray-600 leading-relaxed mt-6">
-              You can control cookie preferences through your browser settings. However, disabling certain cookies may affect website functionality.
-            </p>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">7. Children's Privacy</h2>
-            <p className="text-gray-600 leading-relaxed">
-              Our website is not intended for children under 16 years of age. We do not knowingly collect personal information from children. If you believe we have inadvertently collected information from a child, please contact us immediately and we will delete it.
-            </p>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">8. International Data Transfers</h2>
-            <p className="text-gray-600 leading-relaxed">
-              Your information may be transferred to and processed in countries outside Ghana, including countries that may have different data protection laws. We ensure appropriate safeguards are in place to protect your information in accordance with this privacy policy.
-            </p>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">9. Data Retention</h2>
-            <p className="text-gray-600 leading-relaxed mb-4">
-              We retain your personal information only for as long as necessary to fulfil the purposes outlined in this policy:
-            </p>
-            <ul className="space-y-2 text-gray-600">
-              <li className="flex items-start gap-2">
-                <i className="ri-arrow-right-s-line text-stone-700 mt-1"></i>
-                <span><strong>Account Information:</strong> Until you request deletion or close your account</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-arrow-right-s-line text-stone-700 mt-1"></i>
-                <span><strong>Order History:</strong> 7 years for tax and accounting purposes</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-arrow-right-s-line text-stone-700 mt-1"></i>
-                <span><strong>Marketing Data:</strong> Until you unsubscribe or request deletion</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="ri-arrow-right-s-line text-stone-700 mt-1"></i>
-                <span><strong>Analytics Data:</strong> Typically 26 months</span>
-              </li>
-            </ul>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">10. Changes to This Policy</h2>
-            <p className="text-gray-600 leading-relaxed">
-              We may update this privacy policy from time to time to reflect changes in our practices or for legal, operational, or regulatory reasons. We will notify you of significant changes by email or through a prominent notice on our website. The "Last updated" date at the top indicates when the policy was last revised.
-            </p>
-          </section>
-
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">11. Contact Us</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              If you have any questions, concerns, or requests regarding this privacy policy or our data practices, please contact us via the contact page on this website.
-            </p>
-          </section>
+          </div>
         </div>
       </div>
     </div>

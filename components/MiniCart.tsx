@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useCart } from '@/context/CartContext';
 
 interface MiniCartProps {
@@ -11,6 +12,9 @@ interface MiniCartProps {
 
 export default function MiniCart({ isOpen, onClose }: MiniCartProps) {
   const { cart, removeFromCart, updateQuantity, subtotal } = useCart();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Lock body scroll when cart is open
   useEffect(() => {
@@ -26,15 +30,15 @@ export default function MiniCart({ isOpen, onClose }: MiniCartProps) {
 
   if (!isOpen) return null;
 
-  return (
-    <>
+  const content = (
+    <div className="relative z-[9999]">
       <div
-        className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity"
+        className="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity"
         onClick={onClose}
       ></div>
 
-      <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col slide-in-right" style={{ backgroundColor: '#ffffff' }}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl flex flex-col slide-in-right" style={{ backgroundColor: '#ffffff' }}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-900">
             Shopping Cart ({cart.reduce((sum, i) => sum + i.quantity, 0)})
           </h2>
@@ -63,10 +67,10 @@ export default function MiniCart({ isOpen, onClose }: MiniCartProps) {
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="space-y-4">
                 {cart.map((item) => (
-                  <div key={`${item.id}-${item.variant}`} className="flex space-x-4 bg-gray-50 rounded-lg p-4">
+                  <div key={`${item.id}-${item.variant}`} className="flex space-x-4 bg-gray-50 rounded-lg p-3 sm:p-4">
                     <div className="w-20 h-20 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                       <img
                         src={item.image}
@@ -125,36 +129,38 @@ export default function MiniCart({ isOpen, onClose }: MiniCartProps) {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 p-6 bg-gray-50">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-700 font-medium">Subtotal</span>
-                <span className="text-2xl font-bold text-gray-900">GH₵{subtotal.toFixed(2)}</span>
+            <div className="border-t border-gray-200 p-4 sm:px-6 sm:py-5 bg-gray-50 flex-shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] relative z-10">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-700 font-medium text-sm">Subtotal</span>
+                <span className="text-xl font-bold text-gray-900">GH₵{subtotal.toFixed(2)}</span>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4 text-center">
+              <p className="text-xs text-gray-500 mb-4 text-left">
                 Shipping calculated at checkout
               </p>
 
-              <div className="space-y-3">
-                <Link
-                  href="/checkout"
-                  onClick={onClose}
-                  className="block w-full py-4 bg-stone-700 text-white text-center rounded-lg font-semibold hover:bg-stone-800 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  Proceed to Checkout
-                </Link>
+              <div className="flex gap-3">
                 <Link
                   href="/cart"
                   onClick={onClose}
-                  className="block w-full py-4 border-2 border-gray-900 text-gray-900 text-center rounded-lg font-semibold hover:bg-gray-50 transition-colors whitespace-nowrap cursor-pointer"
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-center rounded-lg font-medium hover:bg-gray-100 transition-colors whitespace-nowrap cursor-pointer text-sm"
                 >
                   View Cart
+                </Link>
+                <Link
+                  href="/checkout"
+                  onClick={onClose}
+                  className="flex-[1.5] py-2.5 bg-stone-800 text-white text-center rounded-lg font-semibold hover:bg-stone-900 transition-colors whitespace-nowrap cursor-pointer text-sm"
+                >
+                  Checkout
                 </Link>
               </div>
             </div>
           </>
         )}
       </div>
-    </>
+    </div>
   );
+
+  return mounted ? createPortal(content, document.body) : null;
 }

@@ -71,7 +71,7 @@ export default function LoginPage() {
       {/* ── LEFT PANEL — editorial / decorative ──────────── */}
       <div className="hidden lg:flex lg:w-[52%] relative bg-stone-950 flex-col justify-between p-14 overflow-hidden">
         <Image
-          src="/hero_tops.png"
+          src="/hero_tops_black.png"
           alt=""
           fill
           className="object-cover object-center"

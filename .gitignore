@@ -30,3 +30,11 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# Editor / AI assistant local settings
+.claude/
+.cursor/
+.vscode/
+
+# Supabase CLI local state
+supabase/.temp/
