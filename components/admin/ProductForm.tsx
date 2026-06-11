@@ -1,13 +1,49 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 interface ProductFormProps {
     initialData?: any;
     isEditMode?: boolean;
+}
+
+// Robust slug generator: strips accents, lowercases, collapses non-alphanumerics into single dashes.
+function slugify(text: string): string {
+    if (!text) return '';
+    return text
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
+}
+
+// Find the next available slug by checking the DB. Appends -2, -3, ... if needed.
+async function findAvailableSlug(base: string, excludeId?: string): Promise<string> {
+    const safeBase = slugify(base) || `product-${Date.now()}`;
+    let candidate = safeBase;
+    let counter = 2;
+    // Hard stop after 50 tries to avoid infinite loops.
+    for (let i = 0; i < 50; i++) {
+        let query = supabase.from('products').select('id').eq('slug', candidate);
+        if (excludeId) query = query.neq('id', excludeId);
+        const { data, error } = await query.limit(1);
+        if (error) {
+            // If lookup fails, return candidate and let the DB constraint fall back.
+            return candidate;
+        }
+        if (!data || data.length === 0) return candidate;
+        candidate = `${safeBase}-${counter}`;
+        counter++;
+    }
+    // Final fallback: append a timestamp.
+    return `${safeBase}-${Date.now().toString(36).slice(-4)}`;
 }
 
 export default function ProductForm({ initialData, isEditMode = false }: ProductFormProps) {
@@ -217,7 +253,50 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
     const [seoTitle, setSeoTitle] = useState(initialData?.seo_title || '');
     const [metaDescription, setMetaDescription] = useState(initialData?.seo_description || '');
     const [urlSlug, setUrlSlug] = useState(initialData?.slug || '');
-    const [keywords, setKeywords] = useState(initialData?.tags?.join(', ') || '');
+    const [keywordList, setKeywordList] = useState<string[]>(
+        Array.isArray(initialData?.tags) ? initialData.tags.filter(Boolean) : []
+    );
+    const [keywordDraft, setKeywordDraft] = useState('');
+    const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+
+    // Resolve the public store URL once for SEO previews. Falls back to a friendly default.
+    const storeUrl = useMemo(() => {
+        const raw = process.env.NEXT_PUBLIC_APP_URL || 'https://luxurylootgh.com';
+        return raw.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    }, []);
+
+    // Effective values shown in the SERP preview — fall back to the product name/description when SEO fields are blank.
+    const effectiveSeoTitle = (seoTitle || productName || 'Your product title').trim();
+    const effectiveMetaDescription = (metaDescription || description || 'A great product from your store.').trim();
+
+    // Helpers for the colored counters/progress bars.
+    const titleLen = seoTitle.length;
+    const descLen = metaDescription.length;
+    const titleZone = titleLen === 0 ? 'gray' : titleLen < 30 ? 'amber' : titleLen <= 60 ? 'green' : 'red';
+    const descZone = descLen === 0 ? 'gray' : descLen < 80 ? 'amber' : descLen <= 160 ? 'green' : 'red';
+    const zoneText: Record<string, string> = {
+        gray: 'text-gray-400', amber: 'text-amber-600', green: 'text-green-600', red: 'text-red-600',
+    };
+    const zoneBar: Record<string, string> = {
+        gray: 'bg-gray-300', amber: 'bg-amber-500', green: 'bg-green-500', red: 'bg-red-500',
+    };
+    const zoneBg: Record<string, string> = {
+        gray: 'bg-gray-50', amber: 'bg-amber-50', green: 'bg-green-50', red: 'bg-red-50',
+    };
+
+    const addKeyword = (raw: string) => {
+        const cleaned = raw.trim().replace(/^,+|,+$/g, '').trim();
+        if (!cleaned) return;
+        if (keywordList.some(k => k.toLowerCase() === cleaned.toLowerCase())) {
+            setKeywordDraft('');
+            return;
+        }
+        setKeywordList(prev => [...prev, cleaned]);
+        setKeywordDraft('');
+    };
+    const removeKeyword = (idx: number) => {
+        setKeywordList(prev => prev.filter((_, i) => i !== idx));
+    };
 
     const tabs = [
         { id: 'general', label: 'General', icon: 'ri-information-line' },
@@ -241,12 +320,43 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
         fetchCategories();
     }, [categoryId]);
 
-    // Auto-generate slug from name if not manually edited
+    // Auto-generate slug from name on first edit (only when slug is empty).
     useEffect(() => {
         if (!isEditMode && productName && !urlSlug) {
-            setUrlSlug(productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''));
+            setUrlSlug(slugify(productName));
         }
     }, [productName, isEditMode, urlSlug]);
+
+    // Live availability check for the slug. Debounced so we don't hammer the DB.
+    useEffect(() => {
+        if (!urlSlug) {
+            setSlugStatus('idle');
+            return;
+        }
+        const cleaned = slugify(urlSlug);
+        if (cleaned !== urlSlug) {
+            // The user typed something we'll have to clean — flag it instead of querying.
+            setSlugStatus('invalid');
+            return;
+        }
+        // If the slug is the same as the existing product's slug in edit mode, it's trivially available.
+        if (isEditMode && initialData?.slug && cleaned === initialData.slug) {
+            setSlugStatus('available');
+            return;
+        }
+        setSlugStatus('checking');
+        const handle = setTimeout(async () => {
+            let query = supabase.from('products').select('id').eq('slug', cleaned);
+            if (isEditMode && initialData?.id) query = query.neq('id', initialData.id);
+            const { data, error } = await query.limit(1);
+            if (error) {
+                setSlugStatus('idle');
+                return;
+            }
+            setSlugStatus(data && data.length > 0 ? 'taken' : 'available');
+        }, 400);
+        return () => clearTimeout(handle);
+    }, [urlSlug, isEditMode, initialData?.id, initialData?.slug]);
 
     // Auto-generate SKU for new products
     useEffect(() => {
@@ -294,16 +404,32 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
         try {
             setLoading(true);
 
+            if (!productName.trim()) {
+                alert('Please enter a product name.');
+                setLoading(false);
+                return;
+            }
+
             // If product has variants, auto-sync main stock = sum of variant stocks
             const hasVariants = variants.length > 0;
             const variantStockTotal = hasVariants
                 ? variants.reduce((sum, v) => sum + (parseInt(v.stock) || 0), 0)
                 : parseInt(stock) || 0;
 
+            // Resolve the slug: prefer what the user typed, but always sanitize and uniquify
+            // before insert so we never trip the products_slug_key constraint.
+            const requestedSlug = slugify(urlSlug || productName);
+            const finalSlug = await findAvailableSlug(
+                requestedSlug,
+                isEditMode ? initialData?.id : undefined
+            );
+            // If the slug was bumped (e.g. taken), reflect that in the field so the user sees what's saved.
+            if (finalSlug !== urlSlug) setUrlSlug(finalSlug);
+
             const salePriceNum = salePrice.trim() ? parseFloat(salePrice) : NaN;
             const productData = {
                 name: productName,
-                slug: urlSlug || productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+                slug: finalSlug,
                 description,
                 category_id: categoryId || null,
                 price: parseFloat(price) || 0,
@@ -315,9 +441,9 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 moq: parseInt(moq) || 1,
                 status: status.toLowerCase(),
                 featured,
-                seo_title: seoTitle,
-                seo_description: metaDescription,
-                tags: (keywords as string).split(',').map((k: string) => k.trim()).filter(Boolean),
+                seo_title: seoTitle.trim() || null,
+                seo_description: metaDescription.trim() || null,
+                tags: keywordList.map(k => k.trim()).filter(Boolean),
                 metadata: {
                     low_stock_threshold: parseInt(lowStockThreshold) || 5,
                     preorder_shipping: preorderShipping.trim() || null
@@ -403,7 +529,12 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
 
         } catch (err: any) {
             console.error('Error saving product:', err);
-            alert(`Error: ${err.message}`);
+            const msg = String(err?.message || '');
+            if (msg.includes('products_slug_key') || msg.includes('duplicate key')) {
+                alert('That URL slug is already taken. Please change the slug in the SEO tab and try again.');
+            } else {
+                alert(`Error: ${err.message}`);
+            }
         } finally {
             setLoading(false);
         }
@@ -1091,75 +1222,223 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     )}
 
                     {activeTab === 'seo' && (
-                        <div className="space-y-6 max-w-3xl">
+                        <div className="space-y-8 max-w-3xl">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-1">Search Engine Optimization</h3>
-                                <p className="text-gray-600">Optimize how this product appears in search results</p>
+                                <h3 className="text-lg font-bold text-gray-900 mb-1">SEO &amp; Search</h3>
+                                <p className="text-gray-600">Control how this product appears on Google, social shares, and the URL bar.</p>
                             </div>
 
+                            {/* Live Google SERP preview */}
+                            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                                <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                                    <i className="ri-google-fill text-blue-600"></i>
+                                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Google Search Preview</span>
+                                </div>
+                                <div className="p-4">
+                                    <div className="text-xs text-gray-600 truncate">
+                                        {storeUrl} &rsaquo; product &rsaquo; {urlSlug || 'product-slug'}
+                                    </div>
+                                    <div className="text-lg text-blue-700 font-medium leading-snug mt-0.5 truncate">
+                                        {effectiveSeoTitle}
+                                    </div>
+                                    <div className="text-sm text-gray-700 leading-snug mt-1 line-clamp-2">
+                                        {effectiveMetaDescription}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Page Title */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                                    Page Title
-                                </label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-semibold text-gray-900">Page Title</label>
+                                    <span className={`text-xs font-medium ${zoneText[titleZone]}`}>
+                                        {titleLen} / 60
+                                        {titleLen === 0 && ' — defaults to product name'}
+                                        {titleLen > 0 && titleLen < 30 && ' — too short'}
+                                        {titleLen >= 30 && titleLen <= 60 && ' — looks good'}
+                                        {titleLen > 60 && ' — may get cut off'}
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={seoTitle}
                                     onChange={(e) => setSeoTitle(e.target.value)}
+                                    maxLength={120}
                                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
-                                    placeholder="Seo friendly title"
+                                    placeholder={productName || 'SEO-friendly title'}
                                 />
-                                <p className="text-sm text-gray-500 mt-2">60 characters recommended</p>
+                                <div className="h-1 bg-gray-100 rounded mt-2 overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all ${zoneBar[titleZone]}`}
+                                        style={{ width: `${Math.min((titleLen / 60) * 100, 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1.5">Aim for 50–60 characters. Leave empty to use the product name.</p>
                             </div>
 
+                            {/* Meta Description */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                                    Meta Description
-                                </label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-semibold text-gray-900">Meta Description</label>
+                                    <span className={`text-xs font-medium ${zoneText[descZone]}`}>
+                                        {descLen} / 160
+                                        {descLen === 0 && ' — defaults to product description'}
+                                        {descLen > 0 && descLen < 80 && ' — too short'}
+                                        {descLen >= 80 && descLen <= 160 && ' — looks good'}
+                                        {descLen > 160 && ' — may get cut off'}
+                                    </span>
+                                </div>
                                 <textarea
                                     rows={3}
-                                    maxLength={500}
+                                    maxLength={320}
                                     value={metaDescription}
                                     onChange={(e) => setMetaDescription(e.target.value)}
                                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500 resize-none"
-                                    placeholder="Seo friendly description"
+                                    placeholder={description ? description.slice(0, 160) : 'Short, compelling summary that shows up in search results.'}
                                 />
-                                <p className="text-sm text-gray-500 mt-2">160 characters recommended</p>
+                                <div className="h-1 bg-gray-100 rounded mt-2 overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all ${zoneBar[descZone]}`}
+                                        style={{ width: `${Math.min((descLen / 160) * 100, 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1.5">Aim for 120–160 characters. Leave empty to use the product description.</p>
                             </div>
 
+                            {/* URL Slug */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                                    URL Slug
-                                </label>
-                                <div className="flex items-center min-w-0">
-                                    <span className="text-gray-600 bg-gray-100 px-4 py-3 border-2 border-r-0 border-gray-300 rounded-l-lg whitespace-nowrap">
-                                        store.com/product/
+                                <label className="text-sm font-semibold text-gray-900 block mb-2">URL Slug</label>
+                                <div className="flex items-stretch min-w-0">
+                                    <span className="text-gray-600 bg-gray-100 px-3 py-3 border-2 border-r-0 border-gray-300 rounded-l-lg whitespace-nowrap text-sm overflow-hidden text-ellipsis hidden sm:inline-flex items-center max-w-[55%]">
+                                        {storeUrl}/product/
                                     </span>
                                     <input
                                         type="text"
                                         value={urlSlug}
-                                        onChange={(e) => setUrlSlug(e.target.value)}
+                                        onChange={(e) => setUrlSlug(slugify(e.target.value))}
                                         autoCapitalize="none"
                                         autoCorrect="off"
                                         spellCheck={false}
-                                        className="min-w-0 flex-1 px-4 py-3 border-2 border-gray-300 rounded-r-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
+                                        className="min-w-0 flex-1 px-4 py-3 border-2 border-gray-300 sm:rounded-none rounded-l-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
                                         placeholder="product-slug"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => productName && setUrlSlug(slugify(productName))}
+                                        disabled={!productName}
+                                        title="Regenerate slug from product name"
+                                        className="px-3 py-3 border-2 border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 hover:text-stone-700 transition-colors"
+                                    >
+                                        <i className="ri-refresh-line text-lg"></i>
+                                    </button>
                                 </div>
-                                <p className="text-sm text-gray-500 mt-2">Use lowercase letters, numbers, and dashes.</p>
+                                <div className="mt-2 flex items-center gap-2 text-xs min-h-[1.25rem]">
+                                    {slugStatus === 'checking' && (
+                                        <span className="flex items-center gap-1 text-gray-500">
+                                            <i className="ri-loader-4-line animate-spin"></i>
+                                            Checking availability…
+                                        </span>
+                                    )}
+                                    {slugStatus === 'available' && (
+                                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                                            <i className="ri-check-line"></i>
+                                            Available
+                                        </span>
+                                    )}
+                                    {slugStatus === 'taken' && (
+                                        <span className="flex items-center gap-1 text-amber-600 font-medium">
+                                            <i className="ri-error-warning-line"></i>
+                                            Already used — we&apos;ll auto-append a number on save
+                                        </span>
+                                    )}
+                                    {slugStatus === 'invalid' && (
+                                        <span className="flex items-center gap-1 text-gray-500">
+                                            <i className="ri-information-line"></i>
+                                            Will be cleaned up to &quot;{slugify(urlSlug) || '—'}&quot; on save
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and dashes only.</p>
                             </div>
 
+                            {/* Keywords as chips */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                                    Keywords
-                                </label>
-                                <input
-                                    type="text"
-                                    value={keywords}
-                                    onChange={(e) => setKeywords(e.target.value)}
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
-                                    placeholder="keyword1, keyword2"
-                                />
-                                <p className="text-sm text-gray-500 mt-2">Separate keywords with commas</p>
+                                <label className="text-sm font-semibold text-gray-900 block mb-2">Keywords / Tags</label>
+                                <div className="flex flex-wrap gap-2 p-2.5 border-2 border-gray-300 rounded-lg min-h-[3rem] bg-white focus-within:ring-2 focus-within:ring-stone-500 focus-within:border-stone-500">
+                                    {keywordList.map((kw, idx) => (
+                                        <span
+                                            key={`${kw}-${idx}`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-100 text-stone-800 text-sm rounded-full font-medium"
+                                        >
+                                            {kw}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeKeyword(idx)}
+                                                className="text-stone-400 hover:text-red-500 transition-colors"
+                                                title="Remove"
+                                            >
+                                                <i className="ri-close-line"></i>
+                                            </button>
+                                        </span>
+                                    ))}
+                                    <input
+                                        type="text"
+                                        value={keywordDraft}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            // Add when comma is typed
+                                            if (v.includes(',')) {
+                                                const parts = v.split(',');
+                                                parts.slice(0, -1).forEach(p => addKeyword(p));
+                                                setKeywordDraft(parts[parts.length - 1] || '');
+                                            } else {
+                                                setKeywordDraft(v);
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (keywordDraft.trim()) addKeyword(keywordDraft);
+                                            } else if (e.key === 'Backspace' && !keywordDraft && keywordList.length) {
+                                                removeKeyword(keywordList.length - 1);
+                                            }
+                                        }}
+                                        onBlur={() => keywordDraft.trim() && addKeyword(keywordDraft)}
+                                        placeholder={keywordList.length ? 'Add another…' : 'Type a keyword and press Enter'}
+                                        className="flex-1 min-w-[10rem] outline-none text-sm bg-transparent"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1.5">Press Enter or comma to add. Click × to remove. Backspace clears the last tag.</p>
+                            </div>
+
+                            {/* SEO checklist */}
+                            <div className={`rounded-xl border p-4 ${zoneBg[titleZone === 'green' && descZone === 'green' && urlSlug && keywordList.length > 0 ? 'green' : 'amber']}`}>
+                                <p className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                                    <i className="ri-shield-check-line mr-2 text-stone-700"></i>
+                                    SEO Checklist
+                                </p>
+                                <ul className="space-y-1.5 text-sm">
+                                    <li className="flex items-center gap-2">
+                                        <i className={`${seoTitle ? 'ri-checkbox-circle-fill text-green-600' : 'ri-close-circle-line text-gray-400'} text-base`}></i>
+                                        <span className={seoTitle ? 'text-gray-700' : 'text-gray-500'}>Custom page title set</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <i className={`${metaDescription ? 'ri-checkbox-circle-fill text-green-600' : 'ri-close-circle-line text-gray-400'} text-base`}></i>
+                                        <span className={metaDescription ? 'text-gray-700' : 'text-gray-500'}>Meta description set</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <i className={`${urlSlug ? 'ri-checkbox-circle-fill text-green-600' : 'ri-close-circle-line text-gray-400'} text-base`}></i>
+                                        <span className={urlSlug ? 'text-gray-700' : 'text-gray-500'}>URL slug defined</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <i className={`${keywordList.length > 0 ? 'ri-checkbox-circle-fill text-green-600' : 'ri-close-circle-line text-gray-400'} text-base`}></i>
+                                        <span className={keywordList.length > 0 ? 'text-gray-700' : 'text-gray-500'}>At least one keyword/tag</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <i className={`${images.length > 0 ? 'ri-checkbox-circle-fill text-green-600' : 'ri-close-circle-line text-gray-400'} text-base`}></i>
+                                        <span className={images.length > 0 ? 'text-gray-700' : 'text-gray-500'}>At least one product image</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     )}
