@@ -44,10 +44,37 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     };
   }, []);
 
+  const [markingPaid, setMarkingPaid] = useState(false);
+
+  const handleMarkPaid = async () => {
+    if (!order) return;
+    if (!confirm(`Mark order ${order.order_number} as paid? Stock is reduced and the customer gets a receipt.`)) return;
+    setMarkingPaid(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/orders/mark-paid', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        },
+        body: JSON.stringify({ orderNumber: order.order_number }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Could not mark the order paid');
+      await fetchOrderDetails();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setMarkingPaid(false);
+    }
+  };
+
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true);
-      // Try to fetch by ID or order_number
+      // Links use the order id; older links and searches use the order number.
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
       let query = supabase
         .from('orders')
         .select(`
@@ -67,11 +94,11 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             )
           )
         `)
-        .eq('id', orderId);
+        .eq(isUuid ? 'id' : 'order_number', orderId);
 
       let { data, error } = await query.single();
 
-      if (error && error.code === 'PGRST116') {
+      if (error && error.code === 'PGRST116' && isUuid) {
         // Not found by ID, try order_number
         const { data: dataByNum, error: errorByNum } = await supabase
           .from('orders')
@@ -559,6 +586,15 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                     {order.payment_status}
                   </span>
                 </div>
+                {order.payment_status !== 'paid' && (
+                  <button
+                    onClick={handleMarkPaid}
+                    disabled={markingPaid}
+                    className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    {markingPaid ? 'Marking as paid…' : 'Mark as paid (payment received)'}
+                  </button>
+                )}
                 <div className="flex justify-between">
                   {/* Transaction ID might be in metadata depending on callback */}
                   <span className="text-gray-600">Transaction</span>

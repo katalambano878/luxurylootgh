@@ -22,7 +22,7 @@ export default async function CategoriesPage() {
 
   const categories = categoriesData?.map((c, i) => ({
     ...c,
-    image: c.image_url || 'https://via.placeholder.com/600x400?text=Category',
+    image: c.image_url || '/placeholder.svg',
     icon: palette[i % palette.length].icon,
   })) || [];
 

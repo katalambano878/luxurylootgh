@@ -116,7 +116,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
 
         // Ensure at least one image/placeholder
         if (transformedProduct.images.length === 0) {
-          transformedProduct.images = ['https://via.placeholder.com/800x800?text=No+Image'];
+          transformedProduct.images = ['/placeholder.svg'];
         }
 
         setProduct(transformedProduct);
@@ -168,7 +168,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                 slug: p.slug,
                 name: p.name,
                 price: p.price,
-                image: p.product_images?.[0]?.url || 'https://via.placeholder.com/800?text=No+Image',
+                image: p.product_images?.[0]?.url || '/placeholder.svg',
                 rating: p.rating_avg || 0,
                 reviewCount: 0,
                 inStock: effectiveStock > 0,

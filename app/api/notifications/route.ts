@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { verifyAuth } from '@/lib/auth';
+import { query } from '@/lib/db/pool';
 import { escapeHtml } from '@/lib/sanitize';
 import { sendOrderConfirmation, sendOrderStatusUpdate, sendWelcomeMessage, sendContactMessage, sendPaymentLink, sendEmail, sendSMS, emailLayout } from '@/lib/notifications';
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
@@ -37,7 +38,10 @@ export async function POST(request: Request) {
         // 'order_created' requires a valid order to exist (verified below)
         // 'contact' is public but rate-limited
         // ============================================================
-        const adminOnlyTypes = ['campaign', 'order_updated', 'order_status', 'payment_link', 'welcome'];
+        // order_created: confirmations to customers go out automatically when an
+        // order is paid; this manual resend is for staff only.
+        // welcome: public for a brand-new account (checked below), else staff.
+        const adminOnlyTypes = ['campaign', 'order_created', 'order_updated', 'order_status', 'payment_link'];
         const requiresAdminAuth = adminOnlyTypes.includes(type);
 
         if (requiresAdminAuth) {
@@ -51,29 +55,18 @@ export async function POST(request: Request) {
         // order_created — verify the order exists in the database
         // ============================================================
         if (type === 'order_created') {
-            // Verify the order actually exists before sending confirmation
-            if (!payload.order_number && !payload.id) {
-                return NextResponse.json({ error: 'Missing order identifier' }, { status: 400 });
+            const orderRef = String(payload.order_number || '');
+            if (!/^ORD-\d+-\d+$/.test(orderRef)) {
+                return NextResponse.json({ error: 'Missing or invalid order number' }, { status: 400 });
             }
-
-            const orderRef = payload.order_number || payload.id;
-            const { data: order, error: orderError } = await supabaseAdmin
+            // Send from the stored order, never from caller-supplied fields.
+            const { data: order } = await supabaseAdmin
                 .from('orders')
-                .select('id, order_number, created_at')
-                .or(`order_number.eq.${orderRef},id.eq.${orderRef}`)
-                .single();
-
-            if (orderError || !order) {
-                return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-            }
-
-            // Verify the order was created recently (within last 10 minutes)
-            const orderAge = Date.now() - new Date(order.created_at).getTime();
-            if (orderAge > 10 * 60 * 1000) {
-                return NextResponse.json({ error: 'Order confirmation can only be sent for recent orders' }, { status: 400 });
-            }
-
-            await sendOrderConfirmation(payload);
+                .select('*')
+                .eq('order_number', orderRef)
+                .maybeSingle();
+            if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+            await sendOrderConfirmation(order);
             return NextResponse.json({ success: true, message: 'Order confirmation sent' });
         }
 
@@ -118,11 +111,24 @@ export async function POST(request: Request) {
         }
 
         if (type === 'welcome') {
-            if (!payload.email) {
-                return NextResponse.json({ error: 'Missing email' }, { status: 400 });
+            const email = String(payload.email || '').trim().toLowerCase();
+            if (!email) return NextResponse.json({ error: 'Missing email' }, { status: 400 });
+            // Only to an account created in the last 15 minutes, once, using the
+            // name stored on the account (the caller cannot choose who gets it).
+            const { rows } = await query<{ id: string; first_name: string | null }>(
+                `UPDATE auth.users
+                    SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"welcome_sent": true}'::jsonb
+                  WHERE lower(email) = $1
+                    AND created_at > now() - interval '15 minutes'
+                    AND coalesce(raw_app_meta_data->>'welcome_sent', '') <> 'true'
+                    AND deleted_at IS NULL
+              RETURNING id, raw_user_meta_data->>'first_name' AS first_name`,
+                [email]
+            );
+            if (rows[0]) {
+                await sendWelcomeMessage({ email, firstName: rows[0].first_name || '' });
             }
-            await sendWelcomeMessage(payload);
-            return NextResponse.json({ success: true, message: 'Welcome message sent' });
+            return NextResponse.json({ success: true, message: 'Welcome message processed' });
         }
 
         // ============================================================

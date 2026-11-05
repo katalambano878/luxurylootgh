@@ -165,7 +165,7 @@ function ShopContent() {
             return {
               id: p.id, slug: p.slug, name: p.name,
               price: pricing.price, originalPrice: pricing.originalPrice,
-              image: p.product_images?.[0]?.url || 'https://via.placeholder.com/800x800?text=No+Image',
+              image: p.product_images?.[0]?.url || '/placeholder.svg',
               rating: p.rating_avg || 0, reviewCount: 0,
               badge: pricing.saleBadge ? 'Sale' : undefined,
               inStock: effectiveStock > 0, maxStock: effectiveStock || 50,

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function PaymentPage() {
@@ -20,22 +19,21 @@ export default function PaymentPage() {
   useEffect(() => {
     async function fetchOrder() {
       try {
-        // Fetch order by ID (UUID) or order_number
-        let query = supabase
-          .from('orders')
-          .select('*')
-          .or(`id.eq.${orderId},order_number.eq.${orderId}`)
-          .single();
+        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/payment`, { cache: 'no-store' });
+        const body = await res.json().catch(() => ({}));
+        const data = res.ok ? body.order : null;
 
-        const { data, error: fetchError } = await query;
-
-        if (fetchError || !data) {
+        if (!data) {
           setError('Order not found. Please check your link and try again.');
           setLoading(false);
           return;
         }
 
         setOrder(data);
+        // Lets the order-success page look this order up for a signed-out customer.
+        try {
+          localStorage.setItem(`order_email:${data.order_number}`, data.email);
+        } catch { /* storage unavailable */ }
 
         // If already paid, redirect to success page
         if (data.payment_status === 'paid') {

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendPaymentLink } from '@/lib/notifications';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Reads the database at request time (never during the build).
+export const dynamic = 'force-dynamic';
 
 // This endpoint is called by a cron job to send payment reminders
 // for orders that haven't been paid within 15 minutes
@@ -13,11 +13,12 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    // Fails closed: without CRON_SECRET nobody can trigger the reminder batch.
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = supabaseAdmin;
 
     // Find orders that:
     // 1. Are not paid
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
     const { data: pendingOrders, error } = await supabase
       .from('orders')
       .select('id, order_number, email, phone, total, shipping_address, metadata')
-      .neq('payment_status', 'paid')
+      .in('payment_status', ['pending', 'failed'])
+      .not('status', 'in', '(cancelled,refunded)')
       .eq('payment_reminder_sent', false)
       .lt('created_at', fifteenMinutesAgo)
       .order('created_at', { ascending: true })

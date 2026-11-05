@@ -87,7 +87,8 @@ export async function settlePaidOrder(
         });
         if (error) console.error('[Payment] Customer stats failed:', error.message);
     }
-    if (order) {
+    // Walk-in POS sales carry placeholder addresses (…@store.local / …@pos.local).
+    if (order && !String(order.email || '').endsWith('.local')) {
         try {
             await sendOrderConfirmation(order);
         } catch (e: any) {

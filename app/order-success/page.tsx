@@ -5,6 +5,34 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Load an order for this page. Signed-in customers read their own order
+ * (row-level security allows it); guests look it up with the order number
+ * plus the email checkout saved in this browser, through the secure RPC.
+ */
+async function loadOrder(orderNum: string): Promise<any | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const { data } = await supabase
+      .from('orders')
+      .select('*, order_items (*)')
+      .eq('order_number', orderNum)
+      .maybeSingle();
+    if (data) return data;
+  }
+  let email: string | null = null;
+  try {
+    email = localStorage.getItem(`order_email:${orderNum}`);
+  } catch { /* storage unavailable */ }
+  if (!email) return null;
+  const { data, error } = await supabase.rpc('get_order_by_number_and_email', {
+    p_order_number: orderNum,
+    p_email: email,
+  });
+  if (error || !data || data.error || !data.order) return null;
+  return { ...data.order, order_items: data.items || [] };
+}
+
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('order');
@@ -22,16 +50,7 @@ function OrderSuccessContent() {
       }
 
       try {
-        const { data: orderData, error } = await supabase
-          .from('orders')
-          .select(`
-                    *,
-                    order_items (*)
-                `)
-          .eq('order_number', orderNumber)
-          .single();
-
-        if (error) throw error;
+        const orderData = await loadOrder(orderNumber);
         setOrder(orderData);
 
         // If redirected from payment and order is still pending, try to verify
@@ -55,11 +74,7 @@ function OrderSuccessContent() {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Re-fetch order to check if callback already updated it
-    const { data: refreshed } = await supabase
-      .from('orders')
-      .select('*, order_items (*)')
-      .eq('order_number', orderNum)
-      .single();
+    const refreshed = await loadOrder(orderNum);
     
     if (refreshed?.payment_status === 'paid') {
       setOrder(refreshed);
@@ -81,11 +96,7 @@ function OrderSuccessContent() {
       
       if (result.success && result.payment_status === 'paid') {
         // Re-fetch full order data
-        const { data: updated } = await supabase
-          .from('orders')
-          .select('*, order_items (*)')
-          .eq('order_number', orderNum)
-          .single();
+        const updated = await loadOrder(orderNum);
         if (updated) setOrder(updated);
       }
     } catch (err) {
@@ -125,10 +136,12 @@ function OrderSuccessContent() {
   const orderDate = new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const estimatedDelivery = new Date(new Date(order.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const pointsEarned = Math.floor(order.total / 10); // Example logic: 1 point per 10 currency units
+  const isPaid = order.payment_status === 'paid';
+  const paymentFailed = order.payment_status === 'failed';
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-50">
-      {showConfetti && (
+      {showConfetti && isPaid && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {[...Array(50)].map((_, i) => (
             <div
@@ -151,13 +164,28 @@ function OrderSuccessContent() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center mb-8">
             <div className="w-24 h-24 flex items-center justify-center mx-auto mb-6 bg-stone-100 rounded-full">
-              <i className="ri-checkbox-circle-fill text-6xl text-stone-600"></i>
+              <i className={`${isPaid ? 'ri-checkbox-circle-fill' : verifying ? 'ri-loader-4-line animate-spin' : 'ri-time-line'} text-6xl text-stone-600`}></i>
             </div>
 
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Order Confirmed!</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              {isPaid ? 'Order Confirmed!' : verifying ? 'Confirming your payment…' : paymentFailed ? 'Payment not completed' : 'Awaiting payment'}
+            </h1>
             <p className="text-xl text-gray-600 mb-8">
-              Thank you for your purchase. We're processing your order now.
+              {isPaid
+                ? "Thank you for your purchase. We're processing your order now."
+                : verifying
+                  ? 'This can take a few seconds. Please keep this page open.'
+                  : 'Your order is saved, but we have not received payment for it yet.'}
             </p>
+            {!isPaid && !verifying && (
+              <Link
+                href={`/pay/${order.id}`}
+                className="inline-flex items-center justify-center bg-stone-900 hover:bg-stone-800 text-white px-8 py-4 rounded-lg font-semibold transition-colors mb-8"
+              >
+                <i className="ri-bank-card-line mr-2"></i>
+                Complete payment
+              </Link>
+            )}
 
             <div className="bg-stone-50 rounded-xl p-6 mb-8">
               <div className="grid md:grid-cols-3 gap-6 text-center">
@@ -205,7 +233,7 @@ function OrderSuccessContent() {
                   </div>
                 </div>
                 <Link
-                  href="/register"
+                  href="/auth/signup"
                   className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap"
                 >
                   Join Now
@@ -222,7 +250,7 @@ function OrderSuccessContent() {
                   <div key={item.id} className="flex items-center space-x-4">
                     <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                       <img
-                        src={item.metadata?.image || 'https://via.placeholder.com/150'}
+                        src={item.metadata?.image || '/placeholder.svg'}
                         alt={item.product_name}
                         className="w-full h-full object-cover object-center"
                       />

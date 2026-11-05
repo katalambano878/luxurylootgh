@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAnon } from '@/lib/supabase-server';
+
+// Reads the database at request time (never during the build).
+export const dynamic = 'force-dynamic';
 
 // Server-side Supabase client (no auth needed for public data)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = supabaseAnon;
 
 // Simple in-memory cache
 let cache: { data: any; timestamp: number } | null = null;

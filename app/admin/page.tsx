@@ -94,7 +94,7 @@ export default function AdminDashboard() {
         if (productData) {
           setTopProducts(productData.map((p: any) => ({
             id: p.slug, name: p.name,
-            image: p.product_images?.[0]?.url || 'https://via.placeholder.com/200',
+            image: p.product_images?.[0]?.url || '/placeholder.svg',
             sales: 0, revenue: 0, stock: p.quantity
           })));
         }

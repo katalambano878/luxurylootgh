@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAnon } from '@/lib/supabase-server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Reads the database at request time (never during the build).
+export const dynamic = 'force-dynamic';
+
+const supabase = supabaseAnon;
 
 /** Escape % and _ so user input is literal in PostgreSQL ILIKE */
 function escapeIlike(s: string): string {

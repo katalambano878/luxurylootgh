@@ -1,5 +1,8 @@
 import { MetadataRoute } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAnon } from '@/lib/supabase-server';
+
+// Reads the database at request time (never during the build).
+export const dynamic = 'force-dynamic';
 
 const baseUrl = 'https://luxurylootgh.com';
 
@@ -26,10 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let categoryPages: MetadataRoute.Sitemap = [];
 
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = supabaseAnon;
 
     const [{ data: products }, { data: categories }] = await Promise.all([
       supabase.from('products').select('slug, updated_at').eq('status', 'active'),

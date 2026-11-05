@@ -100,7 +100,7 @@ export default function POSPage() {
                     }).effective,
                     quantity: p.quantity,
                     category: p.categories?.name || 'Uncategorized',
-                    image: p.product_images?.[0]?.url || 'https://via.placeholder.com/150',
+                    image: p.product_images?.[0]?.url || '/placeholder.svg',
                     sku: p.sku
                 }));
                 setProducts(formatted);
@@ -320,8 +320,10 @@ export default function POSPage() {
                     user_id: null,
                     email: customerEmail,
                     phone: customerPhone,
-                    status: isCashOrCard ? 'processing' : 'pending',
-                    payment_status: isCashOrCard ? 'paid' : 'pending',
+                    // Starts unpaid; /api/admin/pos/complete marks cash/card sales paid
+                    // (which also reduces stock and updates customer totals).
+                    status: 'pending',
+                    payment_status: 'pending',
                     currency: 'GHS',
                     subtotal: posSubtotal,
                     tax_total: posTax,
@@ -361,7 +363,7 @@ export default function POSPage() {
 
             if (itemsError) throw itemsError;
 
-            // 3. Upsert Customer Record (email is required in customers table)
+            // 3. Record the customer and, for cash/card, mark the sale paid (server side).
             const hasRealEmail = customerEmail && customerEmail !== 'pos-walkin@store.local';
             const upsertEmail = hasRealEmail
                 ? customerEmail
@@ -369,61 +371,41 @@ export default function POSPage() {
                     ? `${customerPhone.replace(/[^0-9]/g, '')}@pos.local`
                     : null;
 
+            const { data: { session } } = await supabase.auth.getSession();
+            const completeRes = await fetch('/api/admin/pos/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` })
+                },
+                body: JSON.stringify({
+                    orderNumber,
+                    markPaid: isCashOrCard,
+                    paymentMethod,
+                    customer: upsertEmail ? {
+                        email: upsertEmail,
+                        phone: customerPhone || null,
+                        fullName: customerName || null,
+                        firstName: addressData.firstName || null,
+                        lastName: addressData.lastName || null,
+                        address: addressData,
+                    } : null,
+                }),
+            });
+            const completeResult = await completeRes.json().catch(() => ({}));
+            if (!completeRes.ok) {
+                throw new Error(completeResult.error || `Order ${orderNumber} was saved but could not be completed. Check it in Orders.`);
+            }
             if (upsertEmail) {
-                try {
-                    await supabase.rpc('upsert_customer_from_order', {
-                        p_email: upsertEmail,
-                        p_phone: customerPhone || null,
-                        p_full_name: customerName || null,
-                        p_first_name: addressData.firstName || null,
-                        p_last_name: addressData.lastName || null,
-                        p_user_id: null,
-                        p_address: addressData
-                    });
-                    // Refresh customer list silently
-                    supabase.from('customers').select('id, full_name, email, phone').order('full_name').limit(200)
-                        .then(({ data }) => { if (data) setCustomers(data); });
-                } catch (custErr) {
-                    console.error('Customer upsert error (non-fatal):', custErr);
-                }
+                // Refresh customer list silently
+                supabase.from('customers').select('id, full_name, email, phone').order('full_name').limit(200)
+                    .then(({ data }) => { if (data) setCustomers(data); });
             }
 
-            // 4. If Cash or Card — mark as paid, reduce stock
             if (isCashOrCard) {
-                // Call mark_order_paid to reduce stock (uses order_number as order_ref)
-                try {
-                    await supabase.rpc('mark_order_paid', {
-                        order_ref: orderNumber,
-                        moolre_ref: `POS-${paymentMethod.toUpperCase()}-${Date.now()}`
-                    });
-                } catch (stockErr) {
-                    console.error('Stock reduction error (non-fatal):', stockErr);
-                }
-
-                // Success — show completed
-                setCompletedOrder({ id: order.id, orderNumber, total: grandTotal, items: cart });
+                // Success — show completed (change is fixed now; the cart is cleared next)
+                setCompletedOrder({ id: order.id, orderNumber, total: posGrand, items: cart, change: Math.max(0, (parseFloat(amountTendered) || 0) - posGrand) });
                 setCart([]);
-
-                // Send notification
-                if (customerEmail && customerEmail !== 'pos-walkin@store.local') {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    fetch('/api/notifications', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` })
-                        },
-                        body: JSON.stringify({
-                            type: 'order_created',
-                            payload: {
-                                ...order,
-                                order_number: orderNumber,
-                                email: customerEmail,
-                                shipping_address: addressData
-                            }
-                        })
-                    }).catch(err => console.error('POS Notification error:', err));
-                }
             }
 
             // 5. If Momo — initiate Moolre payment
@@ -433,7 +415,7 @@ export default function POSPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         orderId: orderNumber,
-                        amount: grandTotal,
+                        amount: posGrand,
                         customerEmail: customerEmail
                     })
                 });
@@ -448,7 +430,7 @@ export default function POSPage() {
                 setCompletedOrder({
                     id: order.id,
                     orderNumber,
-                    total: grandTotal,
+                    total: posGrand,
                     items: cart,
                     paymentUrl: paymentResult.url,
                     paymentPending: true
@@ -688,10 +670,10 @@ export default function POSPage() {
                                     </h2>
                                     <p className="text-gray-500 mt-1">Order #{completedOrder.orderNumber}</p>
 
-                                    {!completedOrder.paymentPending && paymentMethod === 'cash' && changeDue > 0 && (
+                                    {!completedOrder.paymentPending && paymentMethod === 'cash' && (completedOrder.change ?? 0) > 0 && (
                                         <div className="mt-3 bg-stone-50 border border-stone-200 rounded-lg p-3">
                                             <p className="text-sm text-stone-700">Change Due</p>
-                                            <p className="text-2xl font-bold text-stone-800">GH₵{changeDue.toFixed(2)}</p>
+                                            <p className="text-2xl font-bold text-stone-800">GH₵{Number(completedOrder.change).toFixed(2)}</p>
                                         </div>
                                     )}
 

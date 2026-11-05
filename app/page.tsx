@@ -371,7 +371,7 @@ export default function Home() {
                 >
                   <div className="aspect-[3/4] rounded-2xl overflow-hidden relative shadow-sm group-hover:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35)] transition-all duration-700 group-hover:-translate-y-2">
                     <Image
-                      src={category.image_url || `https://via.placeholder.com/600x800?text=${encodeURIComponent(category.name)}`}
+                      src={category.image_url || "/placeholder.svg"}
                       alt={category.name}
                       fill
                       className="object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110"
@@ -497,7 +497,7 @@ export default function Home() {
                     name={product.name}
                     price={pricing.price}
                     originalPrice={pricing.originalPrice}
-                    image={product.product_images?.[0]?.url || 'https://via.placeholder.com/400x500'}
+                    image={product.product_images?.[0]?.url || '/placeholder.svg'}
                     rating={product.rating_avg || 5}
                     reviewCount={product.review_count || 0}
                     badge={pricing.saleBadge ? 'Sale' : product.featured ? 'Featured' : undefined}
