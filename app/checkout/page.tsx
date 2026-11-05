@@ -2,15 +2,10 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/lib/supabase';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useRecaptcha } from '@/hooks/useRecaptcha';
-import {
-  parseStorePricingValue,
-  resolveCartLineUnitPrice,
-} from '@/lib/pricing';
 
 // ── Field wrapper ─────────────────────────────────────────────
 function Field({
@@ -50,7 +45,6 @@ const STEPS = [
 
 export default function CheckoutPage() {
   usePageTitle('Checkout');
-  const router = useRouter();
   const { cart, subtotal: cartSubtotal, clearCart } = useCart();
 
   const [currentStep,   setCurrentStep]   = useState(1);
@@ -124,102 +118,35 @@ export default function CheckoutPage() {
     }
 
     try {
-      const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const trackingId  = Array.from({ length: 6 }, () =>
-        'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]
-      ).join('');
-      const trackingNumber = `SLI-${trackingId}`;
-
-      const isValidUUID = (s: string) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-
-      const resolvedLines: { item: (typeof cart)[0]; productId: string }[] = [];
-      for (const item of cart) {
-        let productId = item.id;
-        if (!isValidUUID(productId)) {
-          const { data: prodRow } = await supabase
-            .from('products').select('id')
-            .or(`slug.eq.${productId},id.eq.${productId}`).single();
-          if (!prodRow) throw new Error(`Product not found: ${item.name}. Please remove it and try again.`);
-          productId = prodRow.id;
-        }
-        resolvedLines.push({ item, productId });
-      }
-
-      const uniqueIds = [...new Set(resolvedLines.map(l => l.productId))];
-
-      const { data: pricingRow } = await supabase
-        .from('site_settings').select('value').eq('key', 'store_pricing').maybeSingle();
-      const salesActive = parseStorePricingValue(pricingRow?.value).sales_active;
-
-      const { data: productsFull, error: productsFullError } =
-        uniqueIds.length > 0
-          ? await supabase.from('products')
-              .select('id, price, sale_price, compare_at_price, metadata, product_variants(id, name, option1, option2, price, sale_price)')
-              .in('id', uniqueIds)
-          : { data: [] as any[], error: null };
-
-      if (productsFullError) throw productsFullError;
-
-      const productMap = new Map((productsFull || []).map((p: any) => [p.id, p]));
-      let computedSubtotal = 0;
-      const orderItemsPayload: Record<string, unknown>[] = [];
-
-      for (const { item, productId } of resolvedLines) {
-        const p = productMap.get(productId);
-        if (!p) throw new Error(`Product not found: ${item.name}. Please remove it and try again.`);
-        const unit = resolveCartLineUnitPrice(p, item.variant, salesActive);
-        computedSubtotal += unit * item.quantity;
-        orderItemsPayload.push({
-          product_id: productId, product_name: item.name, variant_name: item.variant,
-          quantity: item.quantity, unit_price: unit, total_price: unit * item.quantity,
-          metadata: { image: item.image, slug: item.slug, preorder_shipping: p.metadata?.preorder_shipping || null },
-        });
-      }
-
-      const checkoutTotal = computedSubtotal + shippingCost + tax;
-
-      const { data: order, error: orderError } = await supabase.from('orders').insert([{
-        order_number: orderNumber, user_id: user?.id || null,
-        email: shippingData.email, phone: shippingData.phone,
-        status: 'pending', payment_status: 'pending', currency: 'GHS',
-        subtotal: computedSubtotal, tax_total: tax, shipping_total: shippingCost,
-        discount_total: 0, total: checkoutTotal,
-        shipping_method: deliveryMethod, payment_method: paymentMethod,
-        shipping_address: shippingData, billing_address: shippingData,
-        metadata: {
-          guest_checkout: !user,
-          first_name: shippingData.firstName, last_name: shippingData.lastName,
-          tracking_number: trackingNumber,
+      // The server prices every line from the database and creates the order.
+      const { data: { session } } = await supabase.auth.getSession();
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-      }]).select().single();
-
-      if (orderError) {
-        console.error('[Checkout] Order insert error:', orderError);
-        throw new Error(`Could not create order: ${orderError.message}`);
-      }
-
-      if (!order) {
-        throw new Error('Order was created but could not be loaded. Please contact support and reference order number ' + orderNumber);
-      }
-
-      const { error: itemsError } = await supabase.from('order_items')
-        .insert(orderItemsPayload.map(row => ({ ...row, order_id: order.id })));
-      if (itemsError) throw itemsError;
-
-      await supabase.rpc('upsert_customer_from_order', {
-        p_email: shippingData.email, p_phone: shippingData.phone,
-        p_full_name: `${shippingData.firstName} ${shippingData.lastName}`.trim(),
-        p_first_name: shippingData.firstName, p_last_name: shippingData.lastName,
-        p_user_id: user?.id || null, p_address: shippingData,
+        body: JSON.stringify({
+          shipping: shippingData,
+          deliveryMethod,
+          items: cart.map(item => ({
+            id: item.id, variant: item.variant, quantity: item.quantity,
+            name: item.name, image: item.image, slug: item.slug,
+          })),
+        }),
       });
+      const orderResult = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok || !orderResult.success) {
+        throw new Error(orderResult.message || 'Could not create your order. Please try again.');
+      }
+      const orderNumber: string = orderResult.orderNumber;
 
       if (paymentMethod === 'moolre') {
         try {
           const paymentRes = await fetch('/api/payment/moolre', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: orderNumber, amount: checkoutTotal, customerEmail: shippingData.email }),
+            body: JSON.stringify({ orderId: orderNumber, amount: orderResult.total, customerEmail: shippingData.email }),
           });
           const paymentResult = await paymentRes.json();
           if (!paymentResult.success) throw new Error(paymentResult.message || 'Payment initialization failed');
@@ -238,15 +165,6 @@ export default function CheckoutPage() {
           return;
         }
       }
-
-      fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'order_created', payload: order }),
-      }).catch(err => console.error('Notification trigger error:', err));
-
-      clearCart();
-      router.push(`/order-success?order=${orderNumber}`);
 
     } catch (err: any) {
       console.error('Checkout error:', err);

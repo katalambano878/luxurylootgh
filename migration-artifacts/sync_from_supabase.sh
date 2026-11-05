@@ -9,18 +9,18 @@
 #      .meta.json content-type sidecar (skips files already mirrored at the
 #      same size, so a second run only fetches what changed)
 #
-# Runs on big-vps from /root/ddz-migration. Run supabase_login.sh on the
+# Runs on big-vps from /root/luxuryloot-migration. Run supabase_login.sh on the
 # operator machine first: it stores a short-lived login in supa.env and
 # .supabase-db-pw (chmod 600). Usage: ./sync_from_supabase.sh <tag>
 set -euo pipefail
 
-cd /root/ddz-migration
+cd /root/luxuryloot-migration
 TAG="${1:-$(date -u +%Y%m%dT%H%M%SZ)}"
-DUMP_DIR=/root/ddz-migration/dumps
-STORAGE_DIR=/data/coolify/departmentstore/storage
-PROJECT_URL=https://tllsgclvhponhtgafjxt.supabase.co
-ANON=departmentstore_anon
-AUTHN=departmentstore_authenticated
+DUMP_DIR=/root/luxuryloot-migration/dumps
+STORAGE_DIR=/data/coolify/luxuryloot/storage
+PROJECT_URL=https://dwcnpnambunujyhjzpvr.supabase.co
+ANON=luxuryloot_anon
+AUTHN=luxuryloot_authenticated
 mkdir -p "$DUMP_DIR" "$STORAGE_DIR"
 
 # The temporary CLI login is a member of postgres; act as postgres so the
@@ -33,24 +33,24 @@ PSQ() { PG psql -qAtX -v ON_ERROR_STOP=1 -c "set role postgres" "$@"; }
 CHECK_SQL="select string_agg(format('select %L as t, count(*) as n, md5(coalesce(string_agg(md5(x::text), %L order by md5(x::text) collate \"C\"), %L)) as h from %I.%I x', schemaname||'.'||tablename, '', '', schemaname, tablename), ' union all ') || ' order by 1;' from pg_tables where schemaname in ('public','auth','storage')"
 
 echo "== source checksums before dump ($TAG)"
-PSQ -c "$CHECK_SQL" | PSQ -F $'\t' -f - > "$DUMP_DIR/ddz_${TAG}.source_before.tsv"
-wc -l < "$DUMP_DIR/ddz_${TAG}.source_before.tsv"
+PSQ -c "$CHECK_SQL" | PSQ -F $'\t' -f - > "$DUMP_DIR/lux_${TAG}.source_before.tsv"
+wc -l < "$DUMP_DIR/lux_${TAG}.source_before.tsv"
 
 echo "== dumping database"
-PG pg_dump -Fc --no-owner --no-privileges --role=postgres -n public -n auth -n storage -f "/dumps/ddz_${TAG}.dump"
-date -u +%Y-%m-%dT%H:%M:%SZ > "$DUMP_DIR/ddz_${TAG}.dumped_at"
-ls -la "$DUMP_DIR/ddz_${TAG}.dump"
+PG pg_dump -Fc --no-owner --no-privileges --role=postgres -n public -n auth -n storage -f "/dumps/lux_${TAG}.dump"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$DUMP_DIR/lux_${TAG}.dumped_at"
+ls -la "$DUMP_DIR/lux_${TAG}.dump"
 
 echo "== source checksums after dump"
 # A table identical before and after was static for the whole dump, so the
 # restore must match it exactly. With the store in maintenance mode (final
 # cutover) every table is static.
-PSQ -c "$CHECK_SQL" | PSQ -F $'\t' -f - > "$DUMP_DIR/ddz_${TAG}.source_after.tsv"
-changed=$(diff <(cut -f1,2,3 "$DUMP_DIR/ddz_${TAG}.source_before.tsv") <(cut -f1,2,3 "$DUMP_DIR/ddz_${TAG}.source_after.tsv") | grep -c '^>' || true)
+PSQ -c "$CHECK_SQL" | PSQ -F $'\t' -f - > "$DUMP_DIR/lux_${TAG}.source_after.tsv"
+changed=$(diff <(cut -f1,2,3 "$DUMP_DIR/lux_${TAG}.source_before.tsv") <(cut -f1,2,3 "$DUMP_DIR/lux_${TAG}.source_after.tsv") | grep -c '^>' || true)
 echo "tables written to on Supabase during the dump: $changed"
 
 echo "== source grants for anon / authenticated"
-PSQ -f - <<SQL > "$DUMP_DIR/ddz_${TAG}.grants.sql"
+PSQ -f - <<SQL > "$DUMP_DIR/lux_${TAG}.grants.sql"
 -- tables
 select format('GRANT %s ON public.%I TO %s;', string_agg(privilege_type, ', '), table_name,
               case grantee when 'anon' then '$ANON' else '$AUTHN' end)
@@ -74,7 +74,7 @@ where n.nspname = 'public' and p.prokind = 'f' and r.rolname in ('anon','authent
   and has_function_privilege(r.rolname, p.oid, 'EXECUTE')
 order by 1;
 SQL
-wc -l < "$DUMP_DIR/ddz_${TAG}.grants.sql"
+wc -l < "$DUMP_DIR/lux_${TAG}.grants.sql"
 
 echo "== mirroring storage"
 PSQ -F $'\t' -c "

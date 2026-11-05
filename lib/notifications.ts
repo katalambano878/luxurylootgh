@@ -66,8 +66,8 @@ export function emailButton(text: string, href: string, color?: string): string 
 // Reusable info row
 function emailInfoRow(label: string, value: string): string {
     return `<tr>
-<td style="padding:10px 16px;color:#6b7280;font-size:13px;border-bottom:1px solid #f3f4f6;width:40%;">${label}</td>
-<td style="padding:10px 16px;color:#111827;font-size:14px;font-weight:600;border-bottom:1px solid #f3f4f6;">${value}</td>
+<td style="padding:10px 16px;color:#6b7280;font-size:13px;border-bottom:1px solid #f3f4f6;width:40%;">${escapeHtml(label)}</td>
+<td style="padding:10px 16px;color:#111827;font-size:14px;font-weight:600;border-bottom:1px solid #f3f4f6;">${escapeHtml(String(value ?? ''))}</td>
 </tr>`;
 }
 
@@ -76,7 +76,7 @@ function emailShippingNotes(notes: string[]): string {
     if (notes.length === 0) return '';
     return `<div style="background-color:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px 16px;margin:20px 0;">
 <p style="font-weight:600;color:#92400e;margin:0 0 6px;font-size:13px;">&#9200; Shipping Notes</p>
-${notes.map(n => `<p style="color:#78350f;margin:3px 0;font-size:13px;">${n}</p>`).join('')}
+${notes.map(n => `<p style="color:#78350f;margin:3px 0;font-size:13px;">${escapeHtml(n)}</p>`).join('')}
 </div>`;
 }
 
@@ -244,7 +244,7 @@ export async function sendOrderConfirmation(order: any) {
 <div style="text-align:center;margin-bottom:24px;">
   <div style="width:64px;height:64px;background-color:${BRAND.colorLight};border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">&#10003;</div>
   <h2 style="margin:0 0 4px;color:#111827;font-size:24px;">Order Confirmed!</h2>
-  <p style="margin:0;color:#6b7280;font-size:15px;">Thank you for your purchase, ${name}.</p>
+  <p style="margin:0;color:#6b7280;font-size:15px;">Thank you for your purchase, ${escapeHtml(name)}.</p>
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:12px;overflow:hidden;margin:20px 0;">
@@ -368,7 +368,7 @@ export async function sendOrderStatusUpdate(order: any, newStatus: string) {
 <div style="text-align:center;margin-bottom:24px;">
   <div style="width:64px;height:64px;background-color:${sc.bg};border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">${sc.icon}</div>
   <h2 style="margin:0 0 4px;color:#111827;font-size:22px;">Order Update</h2>
-  <p style="margin:0;color:#6b7280;font-size:14px;">Hi ${name}, here's an update on your order.</p>
+  <p style="margin:0;color:#6b7280;font-size:14px;">Hi ${escapeHtml(name)}, here's an update on your order.</p>
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:12px;overflow:hidden;margin:20px 0;">
@@ -377,7 +377,7 @@ export async function sendOrderStatusUpdate(order: any, newStatus: string) {
   ${trackingNumber ? emailInfoRow('Tracking Number', trackingNumber) : ''}
 </table>
 
-<p style="color:#374151;font-size:14px;line-height:1.6;margin:16px 0;">${message}</p>
+<p style="color:#374151;font-size:14px;line-height:1.6;margin:16px 0;">${escapeHtml(message)}</p>
 
 ${emailButton('Track Your Order', trackingUrl)}
 `, `Your order #${order_number} is now ${newStatus}`)
@@ -402,7 +402,7 @@ export async function sendWelcomeMessage(user: { email: string, firstName: strin
         html: emailLayout(`
 <div style="text-align:center;margin-bottom:24px;">
   <div style="width:64px;height:64px;background-color:${BRAND.colorLight};border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">&#128075;</div>
-  <h2 style="margin:0 0 4px;color:#111827;font-size:24px;">Welcome, ${firstName}!</h2>
+  <h2 style="margin:0 0 4px;color:#111827;font-size:24px;">Welcome, ${escapeHtml(firstName || 'there')}!</h2>
   <p style="margin:0;color:#6b7280;font-size:15px;">We're so glad you're here.</p>
 </div>
 
@@ -477,7 +477,7 @@ export async function sendPaymentLink(order: any) {
 <div style="text-align:center;margin-bottom:24px;">
   <div style="width:64px;height:64px;background-color:#fef3c7;border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">&#128179;</div>
   <h2 style="margin:0 0 4px;color:#111827;font-size:22px;">Complete Your Order</h2>
-  <p style="margin:0;color:#6b7280;font-size:14px;">Hi ${name}, your order is waiting for payment.</p>
+  <p style="margin:0;color:#6b7280;font-size:14px;">Hi ${escapeHtml(name)}, your order is waiting for payment.</p>
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:12px;overflow:hidden;margin:20px 0;">

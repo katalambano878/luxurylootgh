@@ -52,21 +52,13 @@ export function asRequester<T>(who: Requester, fn: () => Promise<T>): Promise<T>
 }
 
 /**
- * RPCs the browser may call: exactly the functions hosted Supabase granted
- * to anon/authenticated (the database grants enforce the same list).
- * Everything else (mark_order_paid, sales, customer stats, bulk email/phone
- * lists) is server-only and runs through supabaseAdmin.
+ * RPCs the browser may call. Everything else (mark_order_paid, stock, customer
+ * stats, customer email/phone lists) is server-only and runs through
+ * supabaseAdmin; the database grants enforce the same split.
  */
 const BROWSER_RPCS = new Set([
-  "can_view_audit_logs",
-  "fuzzy_product_search",
-  "get_order_for_tracking",
+  "get_order_by_number_and_email",
   "is_admin_or_staff",
-  "is_admin_staff_or_pos",
-  "is_staff_pos",
-  "log_activity",
-  "search_products",
-  "upsert_customer_from_order",
 ]);
 
 export function assertRpcAllowed(fn: string): void {

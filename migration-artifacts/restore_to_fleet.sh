@@ -4,11 +4,11 @@
 #
 #   ./restore_to_fleet.sh <tag> <target_db> <public_base_url>
 #
-# 1. creates <target_db> owned by store_departmentstore (refuses to touch a
+# 1. creates <target_db> owned by store_adjoa_thrift (refuses to touch a
 #    database that already exists)
 # 2. restores public/auth/storage with every object owned by
-#    store_departmentstore (no superuser-owned SECURITY DEFINER functions)
-# 3. per-store RLS roles departmentstore_anon / departmentstore_authenticated
+#    store_adjoa_thrift (no superuser-owned SECURITY DEFINER functions)
+# 3. per-store RLS roles luxuryloot_anon / luxuryloot_authenticated
 #    with exactly the grants Supabase gave anon / authenticated (read from the
 #    source at dump time); policies re-pointed to them
 # 4. per-table count + md5 checksum compared with the source checksums taken
@@ -18,18 +18,18 @@
 set -euo pipefail
 
 TAG="$1"; DB="$2"; BASE="${3%/}"
-OWNER=store_departmentstore
-ANON=departmentstore_anon
-AUTHN=departmentstore_authenticated
-DIR=/root/ddz-migration
-DUMP=$DIR/dumps/ddz_${TAG}.dump
-GRANTS=$DIR/dumps/ddz_${TAG}.grants.sql
-SOURCE_CHECKS=$DIR/dumps/ddz_${TAG}.source_before.tsv
-OLD_URL=https://tllsgclvhponhtgafjxt.supabase.co/storage/v1/
+OWNER=store_adjoa_thrift
+ANON=luxuryloot_anon
+AUTHN=luxuryloot_authenticated
+DIR=/root/luxuryloot-migration
+DUMP=$DIR/dumps/lux_${TAG}.dump
+GRANTS=$DIR/dumps/lux_${TAG}.grants.sql
+SOURCE_CHECKS=$DIR/dumps/lux_${TAG}.source_before.tsv
+OLD_URL=https://dwcnpnambunujyhjzpvr.supabase.co/storage/v1/
 NEW_URL="$BASE/storage/v1/"
 cd "$DIR"
 for f in "$DUMP" "$GRANTS" "$SOURCE_CHECKS"; do [ -f "$f" ] || { echo "missing $f"; exit 1; }; done
-[[ "$DB" =~ ^store_departmentstore[a-z0-9_]*$ ]] || { echo "bad db name"; exit 1; }
+[[ "$DB" =~ ^store_adjoa_thrift[a-z0-9_]*$ ]] || { echo "bad db name"; exit 1; }
 
 PSQL() { docker exec -i fleet-postgres psql -U postgres -v ON_ERROR_STOP=1 -X -q "$@"; }
 
@@ -145,7 +145,7 @@ CHECK_SQL="select string_agg(format('select %L as t, count(*) as n, md5(coalesce
 docker exec -i -e PGTZ=UTC fleet-postgres psql -U postgres -d "$DB" -AtX -c "$CHECK_SQL" \
   | docker exec -i -e PGTZ=UTC fleet-postgres psql -U postgres -d "$DB" -AtX -F $'\t' -f - > "checks_${TAG}_target.tsv"
 cp "$SOURCE_CHECKS" "checks_${TAG}_source.tsv"
-SOURCE_AFTER=$DIR/dumps/ddz_${TAG}.source_after.tsv
+SOURCE_AFTER=$DIR/dumps/lux_${TAG}.source_after.tsv
 echo "tables: source $(wc -l < checks_${TAG}_source.tsv), target $(wc -l < checks_${TAG}_target.tsv)"
 # Per table: identical to the source; or the source itself changed while the
 # dump ran (live writes, only possible outside maintenance mode); anything
