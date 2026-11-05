@@ -1,13 +1,28 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Coolify Dockerfile build: ship only Next's standalone server.
+  output: 'standalone',
   images: {
+    // Images load straight from the store's own storage route (app/storage/v1);
+    // the optimizer cannot fetch the host-relative /storage/... URLs.
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     qualities: [50, 60, 70, 75, 80, 82, 85],
     minimumCacheTTL: 2592000,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'luxurylootgh.com',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.luxurylootgh.com',
+        pathname: '/storage/v1/object/public/**',
+      },
       {
         protocol: 'https',
         hostname: '*.supabase.co',

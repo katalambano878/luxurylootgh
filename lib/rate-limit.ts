@@ -136,6 +136,12 @@ export const RATE_LIMITS = {
     windowSeconds: 60 // 50 requests per minute
   },
   
+  /** Sign-in, sign-up and password-reset requests to /auth/v1 */
+  auth: {
+    maxRequests: 10,
+    windowSeconds: 60,
+  },
+
   // General API - default limits
   default: {
     maxRequests: 100,

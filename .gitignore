@@ -38,3 +38,7 @@ yarn-error.log*
 
 # Supabase CLI local state
 supabase/.temp/
+.mcp.json
+migration-artifacts/dumps/
+migration-artifacts/storage/
+.env.staging
