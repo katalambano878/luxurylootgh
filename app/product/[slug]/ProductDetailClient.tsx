@@ -11,6 +11,8 @@ import { StructuredData, generateProductSchema, generateBreadcrumbSchema } from 
 import { notFound } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useStorePricing } from '@/context/StorePricingContext';
+import { resolveProductPrice, resolveVariantPrice } from '@/lib/pricing';
 
 // Map common color names to hex values for the swatch preview
 function colorNameToHex(name: string): string {
@@ -41,6 +43,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
 
   const { addToCart } = useCart();
+  const { salesActive } = useStorePricing();
 
   useEffect(() => {
     async function fetchProduct() {
@@ -198,8 +201,26 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
   const needsVariantSelection = hasVariants && !selectedVariant;
   const needsColorSelection = hasColors && !selectedColor;
 
-  // Determine the active price: variant price if selected, otherwise base price
-  const activePrice = selectedVariant?.price ?? product?.price ?? 0;
+  // The price checkout will charge: sale price while the store sale is on,
+  // variant price when a variant is selected (same rules as /api/orders).
+  const resolvedPrice = !product
+    ? { effective: 0, originalDisplay: null as number | null }
+    : selectedVariant
+      ? resolveVariantPrice({
+          salesActive,
+          productPrice: product.price,
+          productSalePrice: product.sale_price,
+          variantPrice: Number(selectedVariant.price ?? product.price),
+          variantSalePrice: selectedVariant.sale_price,
+          compareAtPrice: product.compare_at_price,
+        })
+      : resolveProductPrice({
+          salesActive,
+          price: product.price,
+          salePrice: product.sale_price,
+          compareAtPrice: product.compare_at_price,
+        });
+  const activePrice = resolvedPrice.effective;
   const activeStock = selectedVariant ? (selectedVariant.stock ?? selectedVariant.quantity ?? product?.stockCount ?? 0) : (product?.stockCount ?? 0);
 
   const handleAddToCart = () => {
@@ -387,8 +408,8 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                   ) : (
                     <span className="text-3xl lg:text-4xl font-bold text-gray-900">GH₵{activePrice.toFixed(2)}</span>
                   )}
-                  {product.compare_at_price && product.compare_at_price > activePrice && (
-                    <span className="text-xl text-gray-400 line-through">GH₵{product.compare_at_price.toFixed(2)}</span>
+                  {!(hasVariants && !selectedVariant) && resolvedPrice.originalDisplay != null && resolvedPrice.originalDisplay > activePrice && (
+                    <span className="text-xl text-gray-400 line-through">GH₵{resolvedPrice.originalDisplay.toFixed(2)}</span>
                   )}
                 </div>
 

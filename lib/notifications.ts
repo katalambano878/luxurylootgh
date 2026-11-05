@@ -86,7 +86,28 @@ function maskPhone(phone: string): string {
     return phone.slice(0, 4) + '****' + phone.slice(-2);
 }
 
+/**
+ * Staging runs on a copy of the live customer data. When NOTIFY_ALLOWLIST is
+ * set (comma-separated emails and phone numbers), email and SMS go only to
+ * those recipients, so testing never messages real customers. Unset in
+ * production, where everything is sent.
+ */
+function recipientAllowed(recipient: string, kind: 'email' | 'sms'): boolean {
+    const raw = process.env.NOTIFY_ALLOWLIST?.trim();
+    if (!raw) return true;
+    const allowed = raw.split(/[,\s]+/).map((v) => v.trim().toLowerCase()).filter(Boolean);
+    const ok = kind === 'email'
+        ? allowed.includes(recipient.trim().toLowerCase())
+        : allowed.some((v) => /\d/.test(v) && formatPhoneNumber(v) === formatPhoneNumber(recipient));
+    if (!ok) {
+        console.log(`[${kind === 'email' ? 'Email' : 'SMS'}] Skipped (not on NOTIFY_ALLOWLIST):`,
+            kind === 'email' ? recipient.split('@')[0].slice(0, 2) + '***' : maskPhone(recipient));
+    }
+    return ok;
+}
+
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+    if (!recipientAllowed(to, 'email')) return null;
     if (!process.env.RESEND_API_KEY) {
         console.warn('[Email] RESEND_API_KEY not configured');
         return null;
@@ -132,6 +153,7 @@ function formatPhoneNumber(phone: string): string {
 }
 
 export async function sendSMS({ to, message }: { to: string; message: string }) {
+    if (!recipientAllowed(to, 'sms')) return null;
     // Moolre SMS API only requires X-API-VASKEY header for authentication
     // See: https://docs.moolre.com/#/send-sms
     // Allow MOOLRE_SMS_API_KEY or fall back to MOOLRE_API_KEY

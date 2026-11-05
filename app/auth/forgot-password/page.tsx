@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRecaptcha } from '@/hooks/useRecaptcha';
+import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -35,10 +36,16 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSubmitted(true);
-    }, 1500);
+    // Same answer whether or not the address has an account.
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/update-password`,
+    });
+    setIsLoading(false);
+    if (resetError) {
+      setError(resetError.message || 'Could not send the reset email. Please try again.');
+      return;
+    }
+    setIsSubmitted(true);
   };
 
   if (isSubmitted) {
@@ -51,7 +58,7 @@ export default function ForgotPasswordPage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-3">Check Your Email</h1>
             <p className="text-gray-600 mb-6">
-              We've sent a password reset link to <strong>{email}</strong>
+              If an account exists for <strong>{email}</strong>, we've sent it a password reset link.
             </p>
             <p className="text-sm text-gray-500 mb-8">
               If you don't receive an email within a few minutes, please check your spam folder.

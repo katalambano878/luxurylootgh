@@ -100,7 +100,7 @@ function ShopContent() {
       setLoading(true);
       try {
         const search   = searchParams.get('search');
-        const cacheKey = `shop:${selectedCategory}:${search || ''}:${priceRange.join('-')}:${selectedRating}:${sortBy}:${page}:sale:${salesActive}`;
+        const cacheKey = `shop:${selectedCategory}:c${categories.length}:${search || ''}:${priceRange.join('-')}:${selectedRating}:${sortBy}:${page}:sale:${salesActive}`;
 
         const { data, count, error } = await cachedQuery<{ data: any[] | null; count: number | null; error: any }>(
           cacheKey,
@@ -113,15 +113,14 @@ function ShopContent() {
             if (search) query = query.ilike('name', `%${search}%`);
 
             if (selectedCategory !== 'all') {
+              // Filter the products themselves by category id (a filter on the
+              // embedded categories only trims the embed, not the product list).
               const categoryObj = categories.find((c: any) => c.slug === selectedCategory);
-              if (categoryObj) {
-                const targetSlugs = [selectedCategory];
-                const childSlugs  = (categories as any[]).filter((c: any) => c.parent_id === categoryObj.id).map((c: any) => c.slug);
-                targetSlugs.push(...childSlugs);
-                query = query.in('categories.slug', targetSlugs);
-              } else {
-                query = query.eq('categories.slug', selectedCategory);
-              }
+              const targetIds = categoryObj
+                ? [categoryObj.id, ...(categories as any[]).filter((c: any) => c.parent_id === categoryObj.id).map((c: any) => c.id)]
+                : [];
+              // Unknown category: show nothing rather than every product.
+              query = query.in('category_id', targetIds.length ? targetIds : ['00000000-0000-0000-0000-000000000000']);
             }
 
             if (priceRange[1] < 5000) query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);

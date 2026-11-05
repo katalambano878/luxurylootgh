@@ -4,14 +4,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import CartCountdown from '@/components/CartCountdown';
-import AdvancedCouponSystem from '@/components/AdvancedCouponSystem';
 import { useCart } from '@/context/CartContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function CartPage() {
   usePageTitle('Shopping Cart');
   const { cart: cartItems, removeFromCart, updateQuantity, subtotal, addToCart } = useCart();
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [savedItems, setSavedItems] = useState<any[]>([]);
 
   const saveForLater = (id: string) => {
@@ -30,22 +28,11 @@ export default function CartPage() {
     }
   };
 
-  const applyCoupon = (coupon: any) => setAppliedCoupon(coupon);
-  const removeCoupon = () => setAppliedCoupon(null);
-
   const savings = 0;
 
-  let couponDiscount = 0;
-  if (appliedCoupon) {
-    if (appliedCoupon.type === 'percentage') {
-      couponDiscount = subtotal * (appliedCoupon.discount / 100);
-    } else {
-      couponDiscount = appliedCoupon.discount;
-    }
-  }
-
-  const shipping = subtotal >= 200 ? 0 : 15;
-  const total = subtotal - couponDiscount + shipping;
+  // Matches checkout: store pickup is free; doorstep delivery is quoted by the
+  // shop after the order. Discount codes are not applied at checkout yet.
+  const total = subtotal;
 
   return (
     <div className="min-h-screen bg-white">
@@ -254,17 +241,10 @@ export default function CartPage() {
                     <span className="text-sm font-semibold text-white">GH₵{subtotal.toFixed(2)}</span>
                   </div>
 
-                  {appliedCoupon && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-amber-400">Coupon ({appliedCoupon.code})</span>
-                      <span className="text-sm font-semibold text-amber-400">−GH₵{couponDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
-
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-stone-400">Shipping</span>
-                    <span className={`text-sm font-semibold ${shipping === 0 ? 'text-emerald-400' : 'text-white'}`}>
-                      {shipping === 0 ? 'FREE' : `GH₵${shipping.toFixed(2)}`}
+                    <span className="text-sm font-semibold text-white text-right">
+                      Free pickup · delivery quoted
                     </span>
                   </div>
                 </div>
@@ -275,13 +255,6 @@ export default function CartPage() {
                     <span className="text-2xl font-black text-white">GH₵{total.toFixed(2)}</span>
                   </div>
                 </div>
-
-                <AdvancedCouponSystem
-                  subtotal={subtotal}
-                  onApply={applyCoupon}
-                  onRemove={removeCoupon}
-                  appliedCoupon={appliedCoupon}
-                />
 
                 <Link
                   href="/checkout"

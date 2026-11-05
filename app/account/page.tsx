@@ -55,7 +55,7 @@ function AccountContent() {
         firstName: session.user.user_metadata?.first_name || '',
         lastName: session.user.user_metadata?.last_name || '',
         email: session.user.email || '',
-        phone: session.user.phone || ''
+        phone: session.user.user_metadata?.phone || session.user.phone || ''
       });
       setLoading(false);
     }
@@ -77,6 +77,15 @@ function AccountContent() {
       });
 
       if (error) throw error;
+      // Keep the store's customer profile (used by the dashboard) in step.
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: `${profileData.firstName} ${profileData.lastName}`.trim() || null,
+          phone: profileData.phone || null,
+        })
+        .eq('id', user.id);
+      if (profileError) throw profileError;
       setProfileMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (err: any) {
       setProfileMessage({ type: 'error', text: err.message });

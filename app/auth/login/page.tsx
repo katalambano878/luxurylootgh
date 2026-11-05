@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useRecaptcha } from '@/hooks/useRecaptcha';
@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const { getToken, verifying } = useRecaptcha();
+  const [notice, setNotice] = useState('');
+
+  // Messages from the emailed confirmation / password-reset links.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('confirmed') === '1') setNotice('Your email is confirmed. Sign in to continue.');
+    else if (sp.get('reset') === 'success') setNotice('Your password has been changed. Sign in with your new password.');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +134,13 @@ export default function LoginPage() {
             <span className="text-stone-300 font-light">Back</span>
           </h1>
           <p className="text-stone-400 text-sm font-light mb-10">Sign in to your account to continue.</p>
+
+          {notice && !authError && (
+            <div className="flex items-center gap-3 bg-stone-50 border border-stone-200 text-stone-800 px-4 py-3 rounded-xl text-sm mb-6">
+              <i className="ri-checkbox-circle-line flex-shrink-0" />
+              <span>{notice}</span>
+            </div>
+          )}
 
           {authError && (
             <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-6">
