@@ -151,20 +151,14 @@ function AccountContent() {
     }
   ];
 
+  // Email is confirmed before anyone can sign in; phone verification is not offered.
   const securityOptions = [
     {
       icon: 'ri-mail-check-line',
-      title: 'Verify Email',
+      title: 'Email',
       description: user?.email,
       status: user?.email_confirmed_at ? 'verified' : 'unverified',
-      link: '#' // /account/verify-email
-    },
-    {
-      icon: 'ri-phone-line',
-      title: 'Verify Phone',
-      description: user?.phone || 'No phone added',
-      status: user?.phone_confirmed_at ? 'verified' : 'unverified',
-      link: '#' // /account/verify-phone
+      link: '/account'
     }
   ];
 

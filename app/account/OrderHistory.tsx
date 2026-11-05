@@ -2,16 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useCart } from '@/context/CartContext';
 
 interface Order {
   id: string;
   orderNumber: string;
   date: string;
   status: string;
+  paymentStatus: string;
   total: number;
   items: {
     id: string;
+    productId: string | null;
+    slug: string;
+    variant?: string;
     name: string;
     image: string;
     quantity: number;
@@ -20,6 +26,8 @@ interface Order {
 }
 
 export default function OrderHistory() {
+  const router = useRouter();
+  const { addToCart } = useCart();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,9 +54,13 @@ export default function OrderHistory() {
             orderNumber: order.order_number,
             date: order.created_at,
             status: order.status,
+            paymentStatus: order.payment_status,
             total: order.total,
             items: order.order_items.map((item: any) => ({
               id: item.id,
+              productId: item.product_id,
+              slug: item.metadata?.slug || '',
+              variant: item.variant_name || undefined,
               name: item.product_name,
               image: item.metadata?.image || '/placeholder.svg',
               quantity: item.quantity,
@@ -82,15 +94,26 @@ export default function OrderHistory() {
     }
   };
 
+  // Put the order's items back in the cart; checkout prices them afresh.
   const handleReorder = (order: Order) => {
-    // Implement reorder logic (add items back to cart)
-    console.log('Reordering:', order);
-    alert('Reorder feature coming soon!');
-  };
-
-  const handleDownloadInvoice = (orderId: string) => {
-    console.log('Downloading invoice for order:', orderId);
-    alert('Invoice download coming soon!');
+    const lines = order.items.filter((item) => item.productId);
+    if (lines.length === 0) {
+      alert('These items are no longer available.');
+      return;
+    }
+    for (const item of lines) {
+      addToCart({
+        id: item.productId!,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        quantity: item.quantity,
+        variant: item.variant,
+        slug: item.slug,
+        maxStock: 99,
+      });
+    }
+    router.push('/cart');
   };
 
   if (loading) {
@@ -194,13 +217,15 @@ export default function OrderHistory() {
                   <i className="ri-refresh-line mr-2"></i>
                   Reorder
                 </button>
-                <button
-                  onClick={() => handleDownloadInvoice(order.id)}
-                  className="flex-1 sm:flex-none px-4 py-2 border-2 border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors whitespace-nowrap"
-                >
-                  <i className="ri-download-line mr-2"></i>
-                  Invoice
-                </button>
+                {order.paymentStatus !== 'paid' && order.status !== 'cancelled' && (
+                  <Link
+                    href={`/pay/${order.id}`}
+                    className="flex-1 sm:flex-none text-center px-4 py-2 border-2 border-stone-900 text-stone-900 rounded-lg font-semibold hover:bg-stone-50 transition-colors whitespace-nowrap"
+                  >
+                    <i className="ri-bank-card-line mr-2"></i>
+                    Complete Payment
+                  </Link>
+                )}
                 <Link
                   href="/contact"
                   className="flex-1 sm:flex-none text-center px-4 py-2 border-2 border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors whitespace-nowrap"
