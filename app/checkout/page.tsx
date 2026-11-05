@@ -149,6 +149,15 @@ export default function CheckoutPage() {
             body: JSON.stringify({ orderId: orderNumber, amount: orderResult.total, customerEmail: shippingData.email }),
           });
           const paymentResult = await paymentRes.json();
+          if (paymentResult.code === 'payment_unavailable') {
+            // Order is saved; the shop contacts the customer to arrange payment.
+            try {
+              localStorage.setItem(`order_email:${orderNumber}`, shippingData.email);
+            } catch { /* ignore quota errors */ }
+            clearCart();
+            window.location.href = `/order-success?order=${encodeURIComponent(orderNumber)}&payment=unavailable`;
+            return;
+          }
           if (!paymentResult.success) throw new Error(paymentResult.message || 'Payment initialization failed');
           // Remember the customer's email so the order-success page can
           // verify the order via the secure RPC even for guest checkouts.

@@ -30,8 +30,13 @@ export async function POST(req: Request) {
 
         // Ensure environment variables are set
         if (!process.env.MOOLRE_API_USER || !process.env.MOOLRE_API_PUBKEY || !process.env.MOOLRE_ACCOUNT_NUMBER) {
+            // Online payment not set up yet: the order is kept and the shop
+            // arranges payment with the customer.
             console.error('Missing Moolre credentials');
-            return NextResponse.json({ success: false, message: 'Payment gateway configuration error' }, { status: 500 });
+            return NextResponse.json(
+                { success: false, code: 'payment_unavailable', message: 'Online payment is temporarily unavailable' },
+                { status: 503 }
+            );
         }
 
         // SECURITY: Fetch the order from the database and use its total.

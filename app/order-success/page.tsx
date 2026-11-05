@@ -37,6 +37,7 @@ function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('order');
   const paymentSuccess = searchParams.get('payment_success');
+  const paymentUnavailable = searchParams.get('payment') === 'unavailable';
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(true);
@@ -168,16 +169,18 @@ function OrderSuccessContent() {
             </div>
 
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {isPaid ? 'Order Confirmed!' : verifying ? 'Confirming your payment…' : paymentFailed ? 'Payment not completed' : 'Awaiting payment'}
+              {isPaid ? 'Order Confirmed!' : verifying ? 'Confirming your payment…' : paymentUnavailable ? 'Order received' : paymentFailed ? 'Payment not completed' : 'Awaiting payment'}
             </h1>
             <p className="text-xl text-gray-600 mb-8">
               {isPaid
                 ? "Thank you for your purchase. We're processing your order now."
                 : verifying
                   ? 'This can take a few seconds. Please keep this page open.'
-                  : 'Your order is saved, but we have not received payment for it yet.'}
+                  : paymentUnavailable
+                    ? 'Your order is saved. Online payment is not available right now, so our team will contact you shortly to arrange payment.'
+                    : 'Your order is saved, but we have not received payment for it yet.'}
             </p>
-            {!isPaid && !verifying && (
+            {!isPaid && !verifying && !paymentUnavailable && (
               <Link
                 href={`/pay/${order.id}`}
                 className="inline-flex items-center justify-center bg-stone-900 hover:bg-stone-800 text-white px-8 py-4 rounded-lg font-semibold transition-colors mb-8"
