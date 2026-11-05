@@ -32,9 +32,10 @@ export default function AdminLoginPage() {
       if (error) throw error;
 
       if (data.session) {
-        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure`;
-        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax; Secure`;
-        router.push('/admin');
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+        // Back to the dashboard page that sent them here (admin paths only).
+        const target = new URLSearchParams(window.location.search).get('redirect') || '';
+        router.push(target.startsWith('/admin') && !target.startsWith('/admin/login') ? target : '/admin');
         router.refresh();
       }
     } catch (err: any) {

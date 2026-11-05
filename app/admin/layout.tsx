@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure`;
+      document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       if (profile.role !== 'admin' && profile.role !== 'staff') {
         console.warn('User does not have admin/staff role');
-        document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax; Secure';
+        document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
         await supabase.auth.signOut();
         router.push('/admin/login?error=unauthorized');
         return;
@@ -62,11 +62,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'TOKEN_REFRESHED' && session) {
-        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure`;
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
       }
       if (event === 'SIGNED_OUT') {
-        document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax; Secure';
-        document.cookie = 'sb-refresh-token=; path=/; max-age=0; SameSite=Lax; Secure';
+        document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+        document.cookie = 'sb-refresh-token=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
       }
     });
 
@@ -102,8 +102,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   const handleLogout = async () => {
-    document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax; Secure';
-    document.cookie = 'sb-refresh-token=; path=/; max-age=0; SameSite=Lax; Secure';
+    document.cookie = 'sb-access-token=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+    document.cookie = 'sb-refresh-token=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
     await supabase.auth.signOut();
     router.push('/admin/login');
   };
