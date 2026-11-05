@@ -1,10 +1,16 @@
 import { Resend } from 'resend';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { escapeHtml } from '@/lib/sanitize';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 'missing_api_key');
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@luxurylootsgh.com';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'Luxury Loots GH <noreply@luxurylootsgh.com>';
+// Email goes through the shared Postal server (postal.zoepayhub.com, server
+// "luxuryloot", domain luxurylootgh.com with SPF/DKIM/return path verified).
+// Resend is only used if a RESEND_API_KEY is set and Postal is not.
+const POSTAL_API_URL = (process.env.POSTAL_API_URL || 'https://postal.zoepayhub.com').replace(/\/+$/, '');
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// The store owner's inbox for new-order and contact alerts (no default: an
+// unset address skips the alert instead of mailing a stranger).
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim() || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Luxury Loots GH <noreply@luxurylootgh.com>';
 const BRAND = {
     name: 'Luxury Loots GH',
     color: '#7C3AED',
@@ -107,20 +113,34 @@ function recipientAllowed(recipient: string, kind: 'email' | 'sms'): boolean {
 }
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
-    if (!recipientAllowed(to, 'email')) return null;
-    if (!process.env.RESEND_API_KEY) {
-        console.warn('[Email] RESEND_API_KEY not configured');
+    if (!to) {
+        console.warn('[Email] No recipient (is ADMIN_EMAIL set?):', subject);
         return null;
     }
+    if (!recipientAllowed(to, 'email')) return null;
+    const postalKey = process.env.POSTAL_API_KEY;
     try {
-        const data = await resend.emails.send({
-            from: EMAIL_FROM,
-            to,
-            subject,
-            html,
-        });
-        console.log('[Email] Sent successfully to:', to.split('@')[0] + '@***');
-        return data;
+        if (postalKey) {
+            const response = await fetch(`${POSTAL_API_URL}/api/v1/send/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Server-API-Key': postalKey },
+                body: JSON.stringify({ to: [to], from: EMAIL_FROM, subject, html_body: html }),
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok || data?.status === 'error') {
+                console.error('[Email] Postal rejected send:', data?.data?.message || data?.message || response.statusText);
+                return null;
+            }
+            console.log('[Email] Sent to:', to.split('@')[0].slice(0, 2) + '***@' + to.split('@')[1]);
+            return data;
+        }
+        if (resend) {
+            const data = await resend.emails.send({ from: EMAIL_FROM, to, subject, html });
+            console.log('[Email] Sent via Resend to:', to.split('@')[0].slice(0, 2) + '***');
+            return data;
+        }
+        console.warn('[Email] No email provider configured (POSTAL_API_KEY)');
+        return null;
     } catch (error: any) {
         console.error('[Email] Failed:', error.message);
         return null;
@@ -241,7 +261,7 @@ export async function sendOrderConfirmation(order: any) {
     // Fetch order items to get preorder_shipping info
     let shippingNotes: string[] = [];
     try {
-        const { data: items } = await supabase
+        const { data: items } = await supabaseAdmin
             .from('order_items')
             .select('product_name, metadata')
             .eq('order_id', id);
