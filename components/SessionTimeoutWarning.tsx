@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 const IDLE_TIMEOUT = 25 * 60 * 1000;
 const WARNING_TIME = 60 * 1000;
@@ -9,8 +10,18 @@ export default function SessionTimeoutWarning() {
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [lastActivity, setLastActivity] = useState(Date.now());
+  // Only signed-in customers time out; guests (e.g. away paying with mobile
+  // money) are never sent to the login page.
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSignedIn(!!session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!signedIn) return;
     const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
 
     const resetTimer = () => {
@@ -41,10 +52,11 @@ export default function SessionTimeoutWarning() {
       });
       clearInterval(checkInterval);
     };
-  }, [lastActivity]);
+  }, [lastActivity, signedIn]);
 
-  const handleLogout = () => {
-    localStorage.setItem('session_expired', 'true');
+  const handleLogout = async () => {
+    try { localStorage.setItem('session_expired', 'true'); } catch { /* storage unavailable */ }
+    await supabase.auth.signOut().catch(() => {});
     window.location.href = '/auth/login';
   };
 
@@ -54,7 +66,7 @@ export default function SessionTimeoutWarning() {
     setCountdown(60);
   };
 
-  if (!showWarning) return null;
+  if (!signedIn || !showWarning) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

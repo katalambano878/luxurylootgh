@@ -47,6 +47,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isInitialized) {
             localStorage.setItem('wishlist', JSON.stringify(wishlist));
+            window.dispatchEvent(new Event('wishlistUpdated')); // header count
         }
     }, [wishlist, isInitialized]);
 

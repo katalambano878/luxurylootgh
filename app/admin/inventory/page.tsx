@@ -43,13 +43,13 @@ export default function InventoryManagementPage() {
           if (stock === 0) status = 'out';
           else if (stock < 10) status = 'low';
 
-          // categories is an array from the join
-          const categoryData = p.categories as { name: string }[] | null;
+          // categories is a single row (products.category_id -> categories)
+          const categoryData = (Array.isArray(p.categories) ? p.categories[0] : p.categories) as { name: string } | null;
           return {
             id: p.id,
             name: p.name,
             sku: p.sku || 'N/A',
-            category: categoryData?.[0]?.name || 'Uncategorized',
+            category: categoryData?.name || 'Uncategorized',
             currentStock: stock,
             reorderLevel: 10, // Default
             reorderQuantity: 50, // Default

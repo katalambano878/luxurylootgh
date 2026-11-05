@@ -16,25 +16,31 @@ export default function CustomerDetailsPage() {
 
     const fetchCustomerData = useCallback(async () => {
         try {
-            // 1. Fetch Profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
+            // 1. The customer record (the customers list links by customers.id;
+            //    accept a profile/user id too for older links).
+            let { data: profile } = await supabase
+                .from('customers')
                 .select('*')
                 .eq('id', customerId)
-                .single();
+                .maybeSingle();
+            if (!profile) {
+                const byUser = await supabase.from('customers').select('*').eq('user_id', customerId).maybeSingle();
+                profile = byUser.data;
+            }
+            if (!profile) {
+                setCustomer(null);
+                return;
+            }
 
-            if (profileError) throw profileError;
-
-            // 2. Fetch Orders
-            const { data: ordersData, error: ordersError } = await supabase
+            // 2. Their orders: by account, or by any email/phone they ordered with.
+            const filters = [`email.eq.${profile.email}`];
+            if (profile.secondary_email) filters.push(`email.eq.${profile.secondary_email}`);
+            if (profile.user_id) filters.push(`user_id.eq.${profile.user_id}`);
+            const { data: ordersData } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('user_id', customerId)
+                .or(filters.join(','))
                 .order('created_at', { ascending: false });
-
-            if (ordersError && ordersError.code !== 'PGRST116') { // Ignore not found if simply no orders? No, select returns empty array usually
-                // Actually select returns empty array if no match, not error.
-            }
 
             setCustomer(profile);
             setOrders(ordersData || []);

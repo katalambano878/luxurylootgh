@@ -3,29 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-const mockOrders = [
-  {
-    id: 'ORD-2024-156',
-    date: '2024-01-20',
-    items: [
-      {
-        id: 1,
-        name: 'Premium Leather Crossbody Bag',
-        price: 289,
-        image: 'https://readdy.ai/api/search-image?query=elegant%20premium%20leather%20crossbody%20bag%20in%20deep%20forest%20green%20color%20on%20clean%20minimal%20white%20studio%20background%20with%20soft%20natural%20lighting%20showcasing%20luxury%20craftsmanship&width=400&height=400&seq=return1&orientation=squarish',
-        returnable: true,
-      },
-      {
-        id: 2,
-        name: 'Minimalist Ceramic Vase Set',
-        price: 159,
-        image: 'https://readdy.ai/api/search-image?query=modern%20minimalist%20ceramic%20vase%20set%20in%20matte%20cream%20and%20charcoal%20colors%20on%20pristine%20white%20background%20elegant%20home%20decor%20sophisticated%20styling&width=400&height=400&seq=return2&orientation=squarish',
-        returnable: true,
-      },
-    ],
-  },
-];
+import { supabase } from '@/lib/supabase';
 
 const RETURN_REASONS = [
   'Wrong size / fit',
@@ -56,14 +34,38 @@ export default function ReturnsPortalPage() {
   const [isLoading,     setIsLoading]     = useState(false);
   const [foundOrder,    setFoundOrder]    = useState<any>(null);
 
-  const handleFindOrder = (e: React.FormEvent) => {
+  const [lookupError, setLookupError] = useState('');
+
+  // Real order lookup: order number + the email it was placed with.
+  const handleFindOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLookupError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setFoundOrder(mockOrders[0]);
-      setIsLoading(false);
-      setStep(2);
-    }, 1000);
+    const { data, error } = await supabase.rpc('get_order_by_number_and_email', {
+      p_order_number: orderNumber.trim(),
+      p_email: email.trim(),
+    });
+    setIsLoading(false);
+    if (error || !data || data.error || !data.order) {
+      setLookupError('We could not find an order with that number and email. Check both and try again.');
+      return;
+    }
+    const order = data.order;
+    setFoundOrder({
+      id: order.order_number,
+      date: new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      customerName: [order.shipping_address?.firstName, order.shipping_address?.lastName].filter(Boolean).join(' ') || 'Customer',
+      items: (data.items || []).map((it: any, idx: number) => ({
+        id: idx,
+        name: it.variant_name ? `${it.product_name} (${it.variant_name})` : it.product_name,
+        price: Number(it.total_price) || 0,
+        image: it.metadata?.image || '/placeholder.svg',
+        returnable: true,
+      })),
+    });
+    setSelectedItems([]);
+    setReturnReasons({});
+    setStep(2);
   };
 
   const toggleItem = (id: number) =>
@@ -71,12 +73,34 @@ export default function ReturnsPortalPage() {
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
 
-  const handleSubmitReturn = () => {
+  // The request goes to the store's inbox (and an acknowledgement to the customer).
+  const handleSubmitReturn = async () => {
+    if (!foundOrder) return;
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    const lines = foundOrder.items
+      .filter((item: any) => selectedItems.includes(item.id))
+      .map((item: any) => `- ${item.name} (GH₵${item.price.toFixed(2)}): ${returnReasons[item.id]}`)
+      .join('\n');
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'contact',
+          payload: {
+            name: foundOrder.customerName.slice(0, 100),
+            email: email.trim(),
+            subject: `Return request (${returnType}) for order ${foundOrder.id}`.slice(0, 200),
+            message: `Order: ${foundOrder.id}\nRequested: ${returnType}\n\nItems:\n${lines}`.slice(0, 5000),
+          },
+        }),
+      });
+      if (!res.ok) throw new Error('send failed');
       router.push('/returns/confirmation');
-    }, 1500);
+    } catch {
+      alert('We could not send your return request. Please try again, or contact us directly.');
+      setIsLoading(false);
+    }
   };
 
   const canContinue =
@@ -167,6 +191,9 @@ export default function ReturnsPortalPage() {
         {step === 1 && (
           <div className="space-y-10">
             <form onSubmit={handleFindOrder} className="space-y-8">
+              {lookupError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{lookupError}</p>
+              )}
 
               <div>
                 <Label>Order Number *</Label>

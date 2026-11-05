@@ -51,25 +51,21 @@ export default function ContactPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('contact_submissions')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          subject: formData.subject,
-          message: formData.message,
-        });
-
-      if (error) {
-        console.log('Note: contact_submissions table may not exist');
-      }
-
-      fetch('/api/notifications', {
+      // The message is emailed to the store (and acknowledged to the sender).
+      const res = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'contact', payload: formData })
-      }).catch(err => console.error('Contact notification error:', err));
+        body: JSON.stringify({
+          type: 'contact',
+          payload: {
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject,
+            message: formData.phone ? `${formData.message}\n\nPhone: ${formData.phone}` : formData.message,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error('send failed');
 
       setSubmitStatus('success');
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });

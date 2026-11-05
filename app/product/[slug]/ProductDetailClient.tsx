@@ -10,6 +10,7 @@ import ProductReviews from '@/components/ProductReviews';
 import { StructuredData, generateProductSchema, generateBreadcrumbSchema } from '@/components/SEOHead';
 import { notFound } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { useWishlist } from '@/context/WishlistContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useStorePricing } from '@/context/StorePricingContext';
 import { resolveProductPrice, resolveVariantPrice } from '@/lib/pricing';
@@ -39,7 +40,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
 
   const { addToCart } = useCart();
@@ -57,7 +58,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
               .from('products')
               .select(`
                 *,
-                categories(name),
+                categories(name, slug),
                 product_variants(*),
                 product_images(url, position, alt_text)
               `);
@@ -221,6 +222,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
           compareAtPrice: product.compare_at_price,
         });
   const activePrice = resolvedPrice.effective;
+  const isWishlisted = product ? isInWishlist(product.id) : false;
   const activeStock = selectedVariant ? (selectedVariant.stock ?? selectedVariant.quantity ?? product?.stockCount ?? 0) : (product?.stockCount ?? 0);
 
   const handleAddToCart = () => {
@@ -323,7 +325,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
               <i className="ri-arrow-right-s-line text-gray-400"></i>
               <Link href="/shop" className="text-gray-600 hover:text-blue-700 transition-colors">Shop</Link>
               <i className="ri-arrow-right-s-line text-gray-400"></i>
-              <Link href="#" className="text-gray-600 hover:text-blue-700 transition-colors">{product.category}</Link>
+              <Link href={product.categories?.slug ? `/shop?category=${product.categories.slug}` : '/shop'} className="text-gray-600 hover:text-blue-700 transition-colors">{product.category}</Link>
               <i className="ri-arrow-right-s-line text-gray-400"></i>
               <span className="text-gray-900 font-medium truncate max-w-[200px]">{product.name}</span>
             </nav>
@@ -381,7 +383,24 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                     <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">{product.name}</h1>
                   </div>
                   <button
-                    onClick={() => setIsWishlisted(!isWishlisted)}
+                    onClick={() => {
+                      if (isWishlisted) {
+                        removeFromWishlist(product.id);
+                      } else {
+                        addToWishlist({
+                          id: product.id,
+                          name: product.name,
+                          price: activePrice,
+                          originalPrice: resolvedPrice.originalDisplay ?? undefined,
+                          image: product.images[0],
+                          rating: product.rating,
+                          reviewCount: product.reviewCount,
+                          inStock: (product.stockCount ?? 0) > 0,
+                          slug: product.slug,
+                        });
+                      }
+                    }}
+                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                     className="w-12 h-12 flex items-center justify-center border-2 border-gray-200 hover:border-blue-700 rounded-full transition-colors cursor-pointer"
                   >
                     <i className={`${isWishlisted ? 'ri-heart-fill text-red-600' : 'ri-heart-line text-gray-700'} text-xl`}></i>

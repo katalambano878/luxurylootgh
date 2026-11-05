@@ -73,8 +73,8 @@ export default function Footer() {
                 <ul className="space-y-3 text-stone-100/60 text-sm">
                   <li><Link href="/shop" className="hover:text-stone-300 transition-colors">All Products</Link></li>
                   <li><Link href="/categories" className="hover:text-stone-300 transition-colors">Collections</Link></li>
-                  <li><Link href="/shop?sort=newest" className="hover:text-stone-300 transition-colors">New Arrivals</Link></li>
-                  <li><Link href="/shop?sort=bestsellers" className="hover:text-stone-300 transition-colors">Best Sellers</Link></li>
+                  <li><Link href="/shop" className="hover:text-stone-300 transition-colors">New Arrivals</Link></li>
+                  <li><Link href="/shop?sort=rating" className="hover:text-stone-300 transition-colors">Best Sellers</Link></li>
                 </ul>
               </div>
 

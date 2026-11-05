@@ -65,7 +65,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
     const [moq, setMoq] = useState(initialData?.moq || '1');
     const [lowStockThreshold, setLowStockThreshold] = useState(initialData?.metadata?.low_stock_threshold || '5');
     const [description, setDescription] = useState(initialData?.description || '');
-    const [status, setStatus] = useState(initialData?.status || 'Active');
+    const [status, setStatus] = useState((initialData?.status || 'active').toLowerCase());
     const [featured, setFeatured] = useState(initialData?.featured || false);
     const [preorderShipping, setPreorderShipping] = useState(initialData?.metadata?.preorder_shipping || '');
     const [activeTab, setActiveTab] = useState('general');
@@ -384,8 +384,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
             const { data: { publicUrl } } = supabase.storage
                 .from('products')
                 .getPublicUrl(filePath);
+            // Store a site-relative path so the image works on any host (staging or live).
+            const storedUrl = publicUrl.startsWith(window.location.origin) ? publicUrl.slice(window.location.origin.length) : publicUrl;
 
-            setImages([...images, { url: publicUrl, position: images.length }]);
+            setImages([...images, { url: storedUrl, position: images.length }]);
 
         } catch (error: any) {
             alert('Error uploading image: ' + error.message);
@@ -479,10 +481,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 // Strategy: We will just delete all old images/variants and recreate them for simplicity in this MVP.
                 // In a clearer implementation, we would diff them.
 
-                // 1. Images
-                if (isEditMode) {
-                    await supabase.from('product_images').delete().eq('product_id', productId);
-                }
+                // 1. Images: add the new set first and remove the old rows only
+                //    once that worked, so a failed save never leaves no images.
+                const { data: oldImageRows } = isEditMode
+                    ? await supabase.from('product_images').select('id').eq('product_id', productId)
+                    : { data: [] as any[] };
                 if (images.length > 0) {
                     const imageInserts = images.map((img, idx) => ({
                         product_id: productId,
@@ -490,7 +493,13 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                         position: idx,
                         alt_text: productName
                     }));
-                    await supabase.from('product_images').insert(imageInserts);
+                    const { error: imgError } = await supabase.from('product_images').insert(imageInserts);
+                    if (imgError) throw imgError;
+                }
+                const oldImageIds = (oldImageRows || []).map((r: any) => r.id);
+                if (oldImageIds.length > 0) {
+                    const { error: delImgError } = await supabase.from('product_images').delete().in('id', oldImageIds);
+                    if (delImgError) throw delImgError;
                 }
 
                 // 2. Variants
@@ -499,7 +508,8 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     // but for now, full replacement is safer to ensure sync.
                     // Note: This might break order-item references if they rely on variant_id hard constraints without cascading.
                     // Our Schema migration has ON DELETE SET NULL for order_items -> variant_id, so this is safe for now (but distinct from "archiving").
-                    await supabase.from('product_variants').delete().eq('product_id', productId);
+                    const { error: delVarError } = await supabase.from('product_variants').delete().eq('product_id', productId);
+                    if (delVarError) throw delVarError;
                 }
 
                 if (variants.length > 0) {
@@ -668,9 +678,9 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                                         onChange={(e) => setStatus(e.target.value)}
                                         className="w-full px-4 py-3 pr-8 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-stone-500 focus:border-stone-500 cursor-pointer"
                                     >
-                                        <option>Active</option>
-                                        <option>Draft</option>
-                                        <option>Archived</option>
+                                        <option value="active">Active</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="archived">Archived</option>
                                     </select>
                                 </div>
                             </div>

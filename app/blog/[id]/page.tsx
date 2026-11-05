@@ -1,5 +1,9 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { sanitizeHtml } from '@/lib/sanitize';
+
+// Only the posts below exist; any other id is a 404 (not post 1).
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   return [
@@ -259,7 +263,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const post = posts[id] || posts['1'];
+  const post = posts[id];
+  if (!post) notFound();
 
   const relatedPosts = [
     {

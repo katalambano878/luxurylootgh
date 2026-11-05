@@ -83,20 +83,41 @@ export default function AdminDashboard() {
           }));
         }
 
-        const { data: lowStockData } = await supabase.from('products').select('name, quantity').lt('quantity', 10).limit(5);
+        const { data: lowStockData } = await supabase.from('products').select('name, quantity').eq('status', 'active').lt('quantity', 10).order('quantity', { ascending: true }).limit(5);
         if (lowStockData) {
           setLowStockProducts(lowStockData.map((p: any) => ({
             name: p.name, stock: p.quantity, status: p.quantity === 0 ? 'critical' : 'low'
           })));
         }
 
-        const { data: productData } = await supabase.from('products').select('*, product_images(url)').limit(4);
+        // Top products by paid sales (units and revenue from order lines).
+        const { data: paidOrderRows } = await supabase.from('orders').select('id').eq('payment_status', 'paid');
+        const paidIds = (paidOrderRows || []).map((o: any) => o.id);
+        const { data: soldLines } = paidIds.length
+          ? await supabase.from('order_items').select('product_id, quantity, total_price').in('order_id', paidIds)
+          : { data: [] as any[] };
+        const salesByProduct = new Map<string, { sales: number; revenue: number }>();
+        for (const line of soldLines || []) {
+          if (!line.product_id) continue;
+          const cur = salesByProduct.get(line.product_id) || { sales: 0, revenue: 0 };
+          cur.sales += Number(line.quantity) || 0;
+          cur.revenue += Number(line.total_price) || 0;
+          salesByProduct.set(line.product_id, cur);
+        }
+        const rankedIds = [...salesByProduct.entries()].sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 4).map(([id]) => id);
+        const { data: productData } = rankedIds.length
+          ? await supabase.from('products').select('id, name, quantity, product_images(url)').in('id', rankedIds)
+          : await supabase.from('products').select('id, name, quantity, product_images(url)').order('created_at', { ascending: false }).limit(4);
         if (productData) {
-          setTopProducts(productData.map((p: any) => ({
-            id: p.slug, name: p.name,
+          const rows = productData.map((p: any) => ({
+            id: p.id, name: p.name,
             image: p.product_images?.[0]?.url || '/placeholder.svg',
-            sales: 0, revenue: 0, stock: p.quantity
-          })));
+            sales: salesByProduct.get(p.id)?.sales || 0,
+            revenue: salesByProduct.get(p.id)?.revenue || 0,
+            stock: p.quantity
+          }));
+          rows.sort((a: any, b: any) => b.revenue - a.revenue);
+          setTopProducts(rows);
         }
       } catch (error) {
         console.error('Error loading dashboard:', error);

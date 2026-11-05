@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import { useRecaptcha } from '@/hooks/useRecaptcha';
 
 export default function SupportTicketPage() {
@@ -16,8 +14,7 @@ export default function SupportTicketPage() {
     category: 'order',
     priority: 'normal',
     subject: '',
-    description: '',
-    attachments: [] as File[]
+    description: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -45,50 +42,57 @@ export default function SupportTicketPage() {
       return;
     }
     
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push('/support/tickets');
-      }, 2000);
-    }, 1500);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData({
-        ...formData,
-        attachments: Array.from(e.target.files)
+    // The ticket goes to the store's inbox, and the customer gets an acknowledgement.
+    const categoryLabel = categories.find(c => c.value === formData.category)?.label || 'General';
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'contact',
+          payload: {
+            name: formData.name.slice(0, 100),
+            email: formData.email.trim(),
+            subject: `[${categoryLabel}${formData.priority ? ` · ${formData.priority}` : ''}] ${formData.subject}`.slice(0, 200),
+            message: `${formData.orderNumber ? `Order: ${formData.orderNumber}\n\n` : ''}${formData.description}`.slice(0, 5000),
+          },
+        }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'send failed');
+      }
+      setShowSuccess(true);
+    } catch (err: any) {
+      alert(`We could not send your request (${err.message}). Please try again or use the contact page.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   if (showSuccess) {
     return (
       <>
-        <Header />
         <main className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
           <div className="max-w-md mx-auto px-4 text-center">
             <div className="bg-white rounded-xl shadow-lg p-8">
               <div className="w-20 h-20 flex items-center justify-center bg-blue-100 rounded-full mx-auto mb-6">
                 <i className="ri-check-line text-4xl text-blue-700"></i>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Ticket Created!</h2>
-              <p className="text-gray-600 mb-2">
-                Your support ticket has been submitted successfully.
-              </p>
-              <p className="text-sm text-gray-500 mb-6">
-                Ticket #TKT-2024-{Math.floor(Math.random() * 10000)}
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Request sent</h2>
+              <p className="text-gray-600 mb-6">
+                Your message is with our team, and a copy is on its way to {formData.email}.
               </p>
               <div className="space-y-3">
                 <p className="text-sm text-gray-600">
                   We'll respond to your email within 24 hours.
                 </p>
                 <Link
-                  href="/support/tickets"
+                  href="/shop"
                   className="block bg-blue-700 hover:bg-blue-800 text-white py-3 rounded-lg font-semibold transition-colors whitespace-nowrap"
                 >
-                  View My Tickets
+                  Continue Shopping
                 </Link>
                 <Link
                   href="/help"
@@ -100,14 +104,12 @@ export default function SupportTicketPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
           <Link
@@ -281,43 +283,9 @@ export default function SupportTicketPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Attachments (optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    multiple
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer"
-                  >
-                    <i className="ri-upload-cloud-line text-4xl text-gray-400 mb-2"></i>
-                    <p className="text-gray-900 font-semibold mb-1">
-                      Click to upload files
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      PNG, JPG, PDF up to 10MB
-                    </p>
-                  </label>
-                  {formData.attachments.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {formData.attachments.map((file, index) => (
-                        <div key={index} className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                          <i className="ri-file-line"></i>
-                          <span>{file.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <p className="text-sm text-gray-500">
+                Have photos (for example of a damaged item)? Reply to our email with them attached.
+              </p>
 
               <div className="flex space-x-4 pt-6">
                 <button
@@ -361,7 +329,6 @@ export default function SupportTicketPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

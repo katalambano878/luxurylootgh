@@ -16,7 +16,6 @@ export default function AdminReviewsPage() {
         .from('reviews')
         .select(`
           *,
-          profiles:user_id (full_name, email),
           products:product_id (name, product_images (url))
         `)
         .order('created_at', { ascending: false });
@@ -26,7 +25,14 @@ export default function AdminReviewsPage() {
         console.warn('Error fetching reviews:', error);
         // setReviews([]); // Keep empty
       } else if (data) {
-        const formatted = data.map((r: any) => ({
+        // reviews.user_id points at the auth account, not profiles, so the
+        // reviewer's name is looked up separately (staff can read profiles).
+        const userIds = [...new Set(data.map((r: any) => r.user_id).filter(Boolean))];
+        const { data: profileRows } = userIds.length
+          ? await supabase.from('profiles').select('id, full_name, email').in('id', userIds)
+          : { data: [] as any[] };
+        const profileById = new Map((profileRows || []).map((p: any) => [p.id, p]));
+        const formatted = data.map((r: any) => ({ ...r, profiles: profileById.get(r.user_id) })).map((r: any) => ({
           id: r.id,
           customer: {
             name: r.profiles?.full_name || 'Anonymous',
@@ -41,8 +47,8 @@ export default function AdminReviewsPage() {
           title: r.title,
           comment: r.content,
           date: new Date(r.created_at).toLocaleDateString(),
-          status: r.status || 'Pending',
-          helpful: r.helpful || 0
+          status: r.status || 'pending',
+          helpful: r.helpful_votes || 0
         }));
         setReviews(formatted);
       }
@@ -80,9 +86,9 @@ export default function AdminReviewsPage() {
   };
 
   const statusColors: any = {
-    'Pending': 'bg-amber-100 text-amber-700',
-    'Approved': 'bg-stone-100 text-stone-700',
-    'Rejected': 'bg-red-100 text-red-700'
+    pending: 'bg-amber-100 text-amber-700',
+    approved: 'bg-stone-100 text-stone-700',
+    rejected: 'bg-red-100 text-red-700'
   };
 
   const handleSelectAll = () => {
@@ -105,8 +111,9 @@ export default function AdminReviewsPage() {
     if (selectedReviews.length === 0) return;
     try {
       let newStatus = '';
-      if (action === 'Approve') newStatus = 'Approved';
-      if (action === 'Reject') newStatus = 'Rejected';
+      // review_status enum values are lowercase
+      if (action === 'Approve') newStatus = 'approved';
+      if (action === 'Reject') newStatus = 'rejected';
 
       if (newStatus) {
         const { error } = await supabase
@@ -285,7 +292,7 @@ export default function AdminReviewsPage() {
                     <td className="py-4 px-4 text-sm text-gray-600 whitespace-nowrap">{review.date}</td>
                     <td className="py-4 px-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[review.status] || 'bg-gray-100'}`}>
-                        {review.status}
+                        <span className="capitalize">{review.status}</span>
                       </span>
                     </td>
                   </tr>

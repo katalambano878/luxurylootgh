@@ -353,7 +353,7 @@ function OrderSuccessContent() {
                 <i className="ri-customer-service-line mr-1"></i>
                 Contact Support
               </Link>
-              <Link href="/account/orders" className="text-stone-700 hover:text-stone-900 font-semibold whitespace-nowrap">
+              <Link href="/account?tab=orders" className="text-stone-700 hover:text-stone-900 font-semibold whitespace-nowrap">
                 <i className="ri-question-line mr-1"></i>
                 Order Help
               </Link>

@@ -93,8 +93,10 @@ export default function AdminCategoriesPage() {
       const { data: { publicUrl } } = supabase.storage
         .from('products')
         .getPublicUrl(filePath);
+            // Store a site-relative path so the image works on any host (staging or live).
+      const storedUrl = publicUrl.startsWith(window.location.origin) ? publicUrl.slice(window.location.origin.length) : publicUrl;
 
-      setFormData({ ...formData, image_url: publicUrl });
+      setFormData({ ...formData, image_url: storedUrl });
 
     } catch (error: any) {
       alert('Error uploading image: ' + error.message);

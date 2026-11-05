@@ -59,8 +59,9 @@ export default function Header() {
 
   // Wishlist + auth
   useEffect(() => {
-    const update = () =>
-      setWishlistCount(JSON.parse(localStorage.getItem('wishlist') || '[]').length);
+    const update = () => {
+      try { setWishlistCount(JSON.parse(localStorage.getItem('wishlist') || '[]').length); } catch { setWishlistCount(0); }
+    };
     update();
     window.addEventListener('wishlistUpdated', update);
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
